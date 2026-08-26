@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   Plug,
@@ -19,6 +20,7 @@ import {
   ChevronRight,
   Building2,
   Loader2,
+  X,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -133,6 +135,7 @@ type FeedbackState = {
 } | null;
 
 export default function ConnectDerivPage() {
+  const router = useRouter();
   const [derivConnected, setDerivConnected] = useState(false);
   const [accountId] = useState("CR****1234");
   const [accountType, setAccountType] = useState<"DEMO" | "LIVE">("DEMO");
@@ -195,7 +198,13 @@ export default function ConnectDerivPage() {
           <section className="flex justify-center">
             <div className="w-full max-w-lg">
               <BottomSheet open dismissible={false}>
-                <div className="p-6 sm:p-10">
+                <div className="relative p-6 sm:p-10">
+                  <button
+                    onClick={() => router.push("/UserDashboard/dashboard")}
+                    className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full bg-muted/50 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:right-6 sm:top-6"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
                   <div className="mb-8 flex items-center justify-center gap-3">
                     <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[#D4AF37] to-[#b8941f] text-black shadow-md">
                       <Wallet className="h-7 w-7" />
@@ -263,7 +272,7 @@ export default function ConnectDerivPage() {
                     </button>
                   </div>
 
-                  <div className="mt-8 grid grid-cols-1 gap-3 border-t border-border/50 px-0 pt-6 sm:grid-cols-2">
+                  <div className="mt-8 grid grid-cols-2 gap-3 border-t border-border/50 px-0 pt-6 sm:grid-cols-2">
                     <Button
                       size="lg"
                       onClick={() => handleConnect("DEMO")}
@@ -410,7 +419,7 @@ export default function ConnectDerivPage() {
                       onClick={handleToggleBot}
                       disabled={accountType === "LIVE" && !subscriptionStatus}
                       size="lg"
-                      className={`h-12 w-full min-w-0 cursor-pointer px-5 text-sm font-semibold shadow-sm sm:w-auto sm:min-w-[150px] ${
+                      className={`w-full min-w-0 cursor-pointer rounded-full p-4 px-3 text-sm font-semibold shadow-sm sm:w-auto sm:min-w-[100px] ${
                         botStatus === "ACTIVE"
                           ? "bg-amber-500 text-white hover:bg-amber-600"
                           : botStatus === "PAUSED"
