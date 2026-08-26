@@ -1,0 +1,878 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import {
+  Activity,
+  ArrowDownRight,
+  ArrowRight,
+  ArrowUpRight,
+  Bell,
+  Brain,
+  BarChart3,
+  ChevronRight,
+  Unplug,
+  Eye,
+  EyeOff,
+  History,
+  Link2,
+  Loader2,
+  Plug,
+  RefreshCw,
+  Rocket,
+  ShieldCheck,
+  TrendingUp,
+  XCircle,
+  Zap,
+} from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+
+interface TradeRow {
+  id: string;
+  symbol: string;
+  type: "BUY" | "SELL";
+  entry: number;
+  lotSize: number;
+  date: string;
+  profit: number;
+  status: "WIN" | "LOSS" | "OPEN";
+}
+
+interface DashboardData {
+  totalSpent: number;
+  totalProfit: number;
+  todayProfit: number;
+  weeklyProfit: number;
+  monthlyProfit: number;
+  winRate: number;
+  totalTrades: number;
+  winningTrades: number;
+  losingTrades: number;
+  pendingPlans: number;
+  activePlan: number;
+  rejectedPlans: number;
+  recentTrades: TradeRow[];
+  accountStatus: "VERIFIED" | "UNVERIFIED";
+  joined: string;
+  role: string;
+  mt5Connection: "CONNECTED" | "DISCONNECTED";
+  telegramConn: "CONNECTED" | "DISCONNECTED";
+  database: "ONLINE" | "OFFLINE";
+  tradingBot: "IDLE" | "RUNNING" | "STOPPED";
+  plan: {
+    name: string;
+    amount: number;
+    accountSize: string;
+    duration: string;
+    startDate: string;
+    expires: string;
+    status: "APPROVED" | "PENDING" | "REJECTED";
+  };
+}
+
+type Tab = "Billing" | "Bonus" | "Trading";
+
+const GOLD = "#D4AF37";
+
+function formatDate(date: string) {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date(date));
+}
+
+function formatCurrency(value: number, hidden = false) {
+  return hidden
+    ? "••••••"
+    : `$${Math.abs(value).toLocaleString("en-US", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}`;
+}
+
+function StatusBadge({
+  status,
+}: {
+  status: "CONNECTED" | "DISCONNECTED" | "ONLINE" | "OFFLINE" | "RUNNING" | "IDLE" | "STOPPED";
+}) {
+  const isPositive = ["CONNECTED", "ONLINE", "RUNNING"].includes(status);
+  const isWarning = ["IDLE", "STOPPED"].includes(status);
+
+  return (
+    <span
+      className={`inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${
+        isPositive
+          ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400"
+          : isWarning
+            ? "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400"
+            : "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400"
+      }`}
+    >
+      <span
+        className={`h-1.5 w-1.5 rounded-full ${
+          isPositive
+            ? "bg-emerald-500"
+            : isWarning
+              ? "bg-amber-500"
+              : "bg-red-500"
+        }`}
+      />
+      {status}
+    </span>
+  );
+}
+
+function QuickAction({
+  href,
+  title,
+  description,
+  icon,
+}: {
+  href: string;
+  title: string;
+  description: string;
+  icon: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      className="group flex items-center justify-between rounded-xl border border-border/50 p-3 transition-all hover:border-[#D4AF37]/50 hover:bg-[#D4AF37]/5"
+    >
+      <div className="flex min-w-0 items-center gap-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zinc-950 text-[#D4AF37] dark:bg-zinc-100">
+          {icon}
+        </div>
+
+        <div className="min-w-0">
+          <p className="truncate text-xs font-bold uppercase tracking-wider">
+            {title}
+          </p>
+          <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+            {description}
+          </p>
+        </div>
+      </div>
+
+      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-[#D4AF37]" />
+    </Link>
+  );
+}
+
+function LoadingDashboard() {
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="mx-auto max-w-7xl animate-pulse space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+        <div className="h-64 rounded-3xl bg-muted" />
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="h-96 rounded-2xl bg-muted lg:col-span-2" />
+          <div className="h-96 rounded-2xl bg-muted" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function DashboardPage() {
+  const [hideAmounts, setHideAmounts] = useState(false);
+  const [activeTab, setActiveTab] = useState<Tab>("Billing");
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState("just now");
+
+  async function fetchDashboardData(showRefresh = false) {
+    try {
+      if (showRefresh) setRefreshing(true);
+
+      const response = await fetch("/api/user/info", {
+        method: "GET",
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        throw new Error("Unable to load dashboard data");
+      }
+
+      const userData = await response.json();
+
+      if (userData.success) {
+        // Replace this object with the response from your trading API.
+        setData({
+          totalSpent: 30,
+          totalProfit: 15.5,
+          todayProfit: 2.75,
+          weeklyProfit: 8.4,
+          monthlyProfit: 15.5,
+          winRate: 66.7,
+          totalTrades: 9,
+          winningTrades: 6,
+          losingTrades: 3,
+          pendingPlans: 0,
+          activePlan: 0,
+          rejectedPlans: 1,
+          recentTrades: [
+            {
+              id: "TRD-001",
+              symbol: "XAUUSDm",
+              type: "BUY",
+              entry: 4388.23,
+              lotSize: 0.05,
+              date: "2026-08-13",
+              profit: 125.5,
+              status: "WIN",
+            },
+            {
+              id: "TRD-002",
+              symbol: "XAUUSDm",
+              type: "SELL",
+              entry: 4388.71,
+              lotSize: 0.05,
+              date: "2026-08-13",
+              profit: -45.3,
+              status: "LOSS",
+            },
+            {
+              id: "TRD-003",
+              symbol: "XAUUSDm",
+              type: "SELL",
+              entry: 4426.15,
+              lotSize: 0.02,
+              date: "2026-08-12",
+              profit: 78.25,
+              status: "WIN",
+            },
+            {
+              id: "TRD-004",
+              symbol: "XAUUSDm",
+              type: "BUY",
+              entry: 4430.74,
+              lotSize: 0.02,
+              date: "2026-08-12",
+              profit: -32.1,
+              status: "LOSS",
+            },
+            {
+              id: "TRD-005",
+              symbol: "XAUUSDm",
+              type: "BUY",
+              entry: 4405.72,
+              lotSize: 0.02,
+              date: "2026-08-12",
+              profit: 56.8,
+              status: "WIN",
+            },
+            {
+              id: "TRD-006",
+              symbol: "XAUUSDm",
+              type: "BUY",
+              entry: 4405.72,
+              lotSize: 0.02,
+              date: "2026-08-12",
+              profit: 12.4,
+              status: "WIN",
+            },
+            {
+              id: "TRD-007",
+              symbol: "XAUUSDm",
+              type: "BUY",
+              entry: 4405.72,
+              lotSize: 0.02,
+              date: "2026-08-12",
+              profit: -8.9,
+              status: "LOSS",
+            },
+            {
+              id: "TRD-008",
+              symbol: "XAUUSDm",
+              type: "BUY",
+              entry: 4405.72,
+              lotSize: 0.02,
+              date: "2026-08-12",
+              profit: 34.6,
+              status: "WIN",
+            },
+            {
+              id: "TRD-009",
+              symbol: "XAUUSDm",
+              type: "BUY",
+              entry: 4405.72,
+              lotSize: 0.02,
+              date: "2026-08-12",
+              profit: 21.3,
+              status: "WIN",
+            },
+            {
+              id: "TRD-010",
+              symbol: "XAUUSDm",
+              type: "BUY",
+              entry: 4405.72,
+              lotSize: 0.02,
+              date: "2026-08-12",
+              profit: 21.3,
+              status: "WIN",
+            },
+            {
+              id: "TRD-011",
+              symbol: "XAUUSDm",
+              type: "BUY",
+              entry: 4405.72,
+              lotSize: 0.02,
+              date: "2026-08-12",
+              profit: 21.3,
+              status: "WIN",
+            },
+          ],
+          accountStatus: "VERIFIED",
+          joined: "JUL 2026",
+          role: "ADMIN",
+          mt5Connection: "DISCONNECTED",
+          telegramConn: "CONNECTED",
+          database: "ONLINE",
+          tradingBot: "IDLE",
+          plan: {
+            name: "STANDARD PLAN",
+            amount: 20,
+            accountSize: "$200 - $500",
+            duration: "14 DAYS",
+            startDate: "2026-07-21",
+            expires: "2026-08-04",
+            status: "APPROVED",
+          },
+        });
+
+        setLastUpdated("just now");
+      }
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const netValue = useMemo(
+    () => (data ? data.totalSpent + data.totalProfit : 0),
+    [data],
+  );
+
+  if (loading) {
+    return <LoadingDashboard />;
+  }
+
+  if (!data) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background px-4">
+        <Card className="w-full max-w-md text-center">
+          <CardContent className="p-8">
+            <XCircle className="mx-auto h-10 w-10 text-red-500" />
+            <h2 className="mt-4 text-lg font-bold">Dashboard unavailable</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              We could not load your account information.
+            </p>
+            <Button
+              onClick={() => fetchDashboardData(true)}
+              className="mt-6 bg-[#D4AF37] text-black hover:bg-[#c9a227]"
+            >
+              Try Again
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const tabs: Tab[] = ["Billing", "Bonus"];
+
+  return (
+    <main className="min-h-screen bg-background text-foreground">
+      <div className="mx-auto max-w-7xl space-y-5 py-6">
+        {/* Main Balance Banner */}
+        <section className="relative overflow-hidden rounded-3xl bg-zinc-950 text-white shadow-2xl dark:bg-white dark:text-zinc-950">
+          <div className="absolute -right-24 -top-24 h-64 w-64 rounded-full bg-[#D4AF37]/20 blur-3xl" />
+          <div className="absolute -bottom-32 left-1/3 h-72 w-72 rounded-full bg-[#D4AF37]/10 blur-3xl" />
+
+          <div className="relative p-5 sm:p-7 lg:p-8">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-2 overflow-x-auto">
+                {tabs.map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    className={`relative whitespace-nowrap px-2 pb-3 text-xs font-bold uppercase tracking-widest transition ${
+                      activeTab === tab
+                        ? "text-white dark:text-zinc-950"
+                        : "text-zinc-500 hover:text-zinc-200 dark:text-zinc-500 dark:hover:text-zinc-900"
+                    }`}
+                  >
+                    {tab}
+                    {activeTab === tab && (
+                      <span className="absolute bottom-0 left-0 h-0.5 w-full rounded-full bg-[#D4AF37]" />
+                    )}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                onClick={() => setHideAmounts((previous) => !previous)}
+                className="rounded-full p-2 text-zinc-400 transition hover:bg-white/10 hover:text-white dark:hover:bg-black/10 dark:hover:text-zinc-950"
+                aria-label={hideAmounts ? "Show account amounts" : "Hide account amounts"}
+              >
+                {hideAmounts ? (
+                  <EyeOff className="h-5 w-5" />
+                ) : (
+                  <Eye className="h-5 w-5" />
+                )}
+              </button>
+            </div>
+
+            <div className="mt-5 grid gap-5 lg:grid-cols-[1fr_auto] lg:items-end">
+              <div>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-bold text-zinc-400">
+                    Estimated total value
+                  </p>
+                  <span className="rounded-full bg-emerald-500/10 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-400">
+                    Live
+                  </span>
+                </div>
+
+                <div className="mt-2 flex flex-wrap items-end gap-3">
+                  <h2 className="text-4xl font-bold tracking-tight sm:text-4xl">
+                    {formatCurrency(netValue, hideAmounts)}
+                  </h2>
+                  <span className="mb-2 text-sm font-medium text-zinc-500">
+                    USD
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-4 gap-2 sm:gap-2">
+                <Link
+                  href="/user-dashboard/plans"
+                  className="group flex flex-col items-center gap-2"
+                >
+                  <span className="flex h-13 w-13 items-center justify-center rounded-full bg-[#D4AF37] text-black shadow-lg transition group-hover:scale-105">
+                    <Rocket className="h-5 w-5" />
+                  </span>
+                  <span className="text-center text-[10px] font-bold uppercase tracking-wider text-zinc-300 dark:text-zinc-600">
+                    Subscribe
+                  </span>
+                </Link>
+
+                <Link
+                  href="/user-dashboard/connect"
+                  className="group flex flex-col items-center gap-2"
+                >
+                  <span className="flex h-13 w-13 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-300 transition group-hover:border-[#D4AF37] group-hover:text-[#D4AF37] dark:border-zinc-300 dark:bg-zinc-100 dark:text-zinc-700">
+                    <Unplug className="h-5 w-5" />
+                  </span>
+                  <span className="text-center text-[10px] font-bold uppercase tracking-wider text-zinc-300 dark:text-zinc-600">
+                    Connect
+                  </span>
+                </Link>
+
+                <Link
+                  href="/user-dashboard/predict"
+                  className="group flex flex-col items-center gap-2"
+                >
+                  <span className="flex h-13 w-13 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-300 transition group-hover:border-[#D4AF37] group-hover:text-[#D4AF37] dark:border-zinc-300 dark:bg-zinc-100 dark:text-zinc-700">
+                    <BarChart3 className="h-5 w-5" />
+                  </span>
+                  <span className="text-center text-[10px] font-bold uppercase tracking-wider text-zinc-300 dark:text-zinc-600">
+                    Predict
+                  </span>
+                </Link>
+                
+                <Link
+                  href="/user-dashboard/predict"
+                  className="group flex flex-col items-center gap-2"
+                >
+                  <span className="flex h-13 w-13 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-300 transition group-hover:border-[#D4AF37] group-hover:text-[#D4AF37] dark:border-zinc-300 dark:bg-zinc-100 dark:text-zinc-700">
+                    <Brain className="h-5 w-5" />
+                  </span>
+                  <span className="text-center text-[10px] font-bold uppercase tracking-wider text-zinc-300 dark:text-zinc-600">
+                    AI Insights
+                  </span>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </section>
+
+
+
+
+           {/* Trading Stats Summary */}
+        <section>
+          <div className="grid gap-4 grid-cols-2 sm:grid-cols-2 lg:grid-cols-4">
+            <Card className="border-border/50 shadow-sm">
+              <CardContent className="px-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                      Today's profit
+                    </p>
+                    <p className="mt-2 text-xl font-bold text-emerald-600 dark:text-emerald-400">
+                      {hideAmounts ? "••••••" : `+$${data.todayProfit.toFixed(2)}`}
+                    </p>
+                  </div>
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400">
+                    <TrendingUp className="h-5 w-5" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-border/50 shadow-sm">
+              <CardContent className="px-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                      Win rate
+                    </p>
+                    <p className="mt-2 text-xl font-bold">
+                      {data.winRate.toFixed(1)}%
+                    </p>
+                  </div>
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#D4AF37]/10 text-[#D4AF37]">
+                    <Activity className="h-5 w-5" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-border/50 shadow-sm">
+              <CardContent className="px-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                      Total trades
+                    </p>
+                    <p className="mt-2 text-xl font-bold">
+                      {data.totalTrades}
+                    </p>
+                  </div>
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-blue-600 dark:bg-blue-950/30 dark:text-blue-400">
+                    <History className="h-5 w-5" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-border/50 shadow-sm">
+              <CardContent className="px-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                      Monthly profit
+                    </p>
+                    <p className="mt-2 text-xl font-bold text-emerald-600 dark:text-emerald-400">
+                      {hideAmounts ? "••••••" : `+$${data.monthlyProfit.toFixed(2)}`}
+                    </p>
+                  </div>
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-100 text-purple-600 dark:bg-purple-950/30 dark:text-purple-400">
+                    <TrendingUp className="h-5 w-5" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </section>
+
+
+
+        {/* Quick Actions (now full width, replacing the removed metrics/performance sections) */}
+<section className="hidden lg:block">
+          <Card className="border-border/50 shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-sm font-bold uppercase tracking-wider">
+                Quick actions
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Common account tasks.
+              </CardDescription>
+            </CardHeader>
+
+            <CardContent>
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <QuickAction
+                  href="/user-dashboard/connect"
+                  title="Connect MT5"
+                  description="Link your MetaTrader account"
+                  icon={<Link2 className="h-4 w-4" />}
+                />
+                <QuickAction
+                  href="/user-dashboard/predict"
+                  title="Predict market"
+                  description="View AI-powered insights"
+                  icon={<Brain className="h-4 w-4" />}
+                />
+                <QuickAction
+                  href="/user-dashboard/transactions"
+                  title="View transactions"
+                  description="Review account activity"
+                  icon={<History className="h-4 w-4" />}
+                />
+                <QuickAction
+                  href="/user-dashboard/telegram"
+                  title="Telegram alerts"
+                  description="Manage trade notifications"
+                  icon={<Zap className="h-4 w-4" />}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+
+     
+
+        {/* Lower Content */}
+        <section className="flex flex-col gap-6 lg:flex-row lg:gap-6">
+          {/* Right Sidebar - Comes first on mobile, moves to right on desktop */}
+          <div className="flex w-full flex-col gap-6 lg:w-1/3">
+            {/* Plan Overview */}
+            <Card className="border-border/50 shadow-sm">
+              <CardHeader className="flex flex-row items-start justify-between space-y-0">
+                <div>
+                  <CardTitle className="text-sm font-bold uppercase tracking-wider">
+                    Active plan
+                  </CardTitle>
+                  <CardDescription className="mt-1 text-xs">
+                    Subscription and account allocation.
+                  </CardDescription>
+                </div>
+                <ShieldCheck className="h-5 w-5 text-[#D4AF37]" />
+              </CardHeader>
+
+              <CardContent>
+                <div className="rounded-2xl bg-zinc-950 p-4 text-white dark:bg-zinc-100 dark:text-zinc-950">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+                        Current subscription
+                      </p>
+                      <h3 className="mt-1 text-lg font-bold">{data.plan.name}</h3>
+                    </div>
+                    <span className="rounded-full bg-emerald-500/15 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-400">
+                      {data.plan.status}
+                    </span>
+                  </div>
+
+                  <div className="mt-5 grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider text-zinc-500">
+                        Plan fee
+                      </p>
+                      <p className="mt-1 font-bold">
+                        {formatCurrency(data.plan.amount, hideAmounts)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider text-zinc-500">
+                        Account size
+                      </p>
+                      <p className="mt-1 font-bold">{data.plan.accountSize}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-5 space-y-3">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">Duration</span>
+                    <span className="font-bold">{data.plan.duration}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">Started</span>
+                    <span className="font-bold">
+                      {formatDate(data.plan.startDate)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">Expires</span>
+                    <span className="font-bold">
+                      {formatDate(data.plan.expires)}
+                    </span>
+                  </div>
+                </div>
+
+                <Link href="/user-dashboard/plans">
+                  <Button className="mt-5 w-full gap-2 rounded-full bg-[#D4AF37] p-5 text-xs font-bold uppercase tracking-wider text-black hover:bg-[#c9a227]">
+                    Manage plan <ArrowRight className="h-5 w-5" />
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+
+            {/* System Health */}
+            <Card className="border-border/50 shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-sm font-bold uppercase tracking-wider">
+                  System health
+                </CardTitle>
+                <CardDescription className="mt-1 text-xs">
+                  Connection status across your workspace.
+                </CardDescription>
+              </CardHeader>
+
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="inline-flex items-center gap-2 text-xs font-semibold">
+                    <Plug className="h-4 w-4 text-muted-foreground" />
+                    MT5 connection
+                  </span>
+                  <StatusBadge status={data.mt5Connection} />
+                </div>
+
+                <div className="flex items-center justify-between gap-3">
+                  <span className="inline-flex items-center gap-2 text-xs font-semibold">
+                    <Bell className="h-4 w-4 text-muted-foreground" />
+                    Telegram alerts
+                  </span>
+                  <StatusBadge status={data.telegramConn} />
+                </div>
+
+                <div className="flex items-center justify-between gap-3">
+                  <span className="inline-flex items-center gap-2 text-xs font-semibold">
+                    <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+                    Database
+                  </span>
+                  <StatusBadge status={data.database} />
+                </div>
+
+                <div className="flex items-center justify-between gap-3">
+                  <span className="inline-flex items-center gap-2 text-xs font-semibold">
+                    <Activity className="h-4 w-4 text-muted-foreground" />
+                    Trading bot
+                  </span>
+                  <StatusBadge status={data.tradingBot} />
+                </div>
+
+                <Link
+                  href="/user-dashboard/connect"
+                  className="flex items-center justify-between rounded-lg bg-muted/40 px-3 py-2.5 text-xs font-bold uppercase tracking-wider transition hover:bg-muted"
+                >
+                  Review connections
+                  <ArrowRight className="h-4 w-4 text-[#B28D16]" />
+                </Link>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Recent Trades - Comes last on mobile, takes 2/3 width on desktop */}
+          <Card className="border-border/50 shadow-sm lg:w-2/3">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0">
+              <div>
+                <CardTitle className="text-sm font-bold uppercase tracking-wider">
+                  Recent activity
+                </CardTitle>
+                <CardDescription className="mt-1 text-xs">
+                  Your latest executed positions.
+                </CardDescription>
+              </div>
+
+              <Link href="/user-dashboard/trading">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 gap-1 border-[#D4AF37]/50 text-[10px] font-bold uppercase tracking-wider text-[#B28D16] hover:bg-[#D4AF37]/10"
+                >
+                  View all <ArrowRight className="h-3.5 w-3.5" />
+                </Button>
+              </Link>
+            </CardHeader>
+
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[680px] text-sm">
+                  <thead>
+                    <tr className="border-y border-border/50 bg-muted/20 text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                      <th className="px-6 py-3">Symbol</th>
+                      <th className="px-6 py-3">Position</th>
+                      <th className="px-6 py-3">Entry</th>
+                      <th className="px-6 py-3">Lot size</th>
+                      <th className="px-6 py-3">Result</th>
+                      <th className="px-6 py-3">Date</th>
+                    </tr>
+                  </thead>
+
+                  <tbody className="divide-y divide-border/40">
+                    {data.recentTrades.slice(0, 6).map((trade) => (
+                      <tr
+                        key={trade.id}
+                        className="transition-colors hover:bg-muted/30"
+                      >
+                        <td className="px-6 py-4">
+                          <div className="font-bold tracking-tight">
+                            {trade.symbol}
+                          </div>
+                          <div className="mt-0.5 text-[10px] text-muted-foreground">
+                            {trade.id}
+                          </div>
+                        </td>
+
+                        <td className="px-6 py-4">
+                          <span
+                            className={`inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider ${
+                              trade.type === "BUY"
+                                ? "text-emerald-600 dark:text-emerald-400"
+                                : "text-red-600 dark:text-red-400"
+                            }`}
+                          >
+                            {trade.type === "BUY" ? (
+                              <ArrowUpRight className="h-3.5 w-3.5" />
+                            ) : (
+                              <ArrowDownRight className="h-3.5 w-3.5" />
+                            )}
+                            {trade.type}
+                          </span>
+                        </td>
+
+                        <td className="px-6 py-4 font-medium tabular-nums">
+                          {trade.entry.toFixed(2)}
+                        </td>
+
+                        <td className="px-6 py-4 font-medium tabular-nums">
+                          {trade.lotSize.toFixed(2)}
+                        </td>
+
+                        <td className="px-6 py-4">
+                          <div
+                            className={`font-bold tabular-nums ${
+                              trade.profit >= 0
+                                ? "text-emerald-600 dark:text-emerald-400"
+                                : "text-red-600 dark:text-red-400"
+                            }`}
+                          >
+                            {trade.profit >= 0 ? "+" : "-"}
+                            {formatCurrency(trade.profit, hideAmounts)}
+                          </div>
+                        </td>
+
+                        <td className="px-6 py-4 text-xs text-muted-foreground">
+                          {formatDate(trade.date)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+      </div>
+    </main>
+  );
+}
