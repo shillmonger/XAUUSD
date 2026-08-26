@@ -90,13 +90,11 @@ function formatDate(date: string) {
   }).format(new Date(date));
 }
 
-function formatCurrency(value: number, hidden = false) {
-  return hidden
-    ? "••••••"
-    : `$${Math.abs(value).toLocaleString("en-US", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      })}`;
+function formatCurrency(value: number) {
+  return `$${Math.abs(value).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
 }
 
 function StatusBadge({
@@ -182,7 +180,7 @@ function LoadingDashboard() {
 }
 
 export default function DashboardPage() {
-  const [hideAmounts, setHideAmounts] = useState(false);
+  const [hideBalance, setHideBalance] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("Billing");
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -426,11 +424,11 @@ export default function DashboardPage() {
               </div>
 
               <button
-                onClick={() => setHideAmounts((previous) => !previous)}
+                onClick={() => setHideBalance((previous) => !previous)}
                 className="rounded-full p-2 text-zinc-400 transition hover:bg-white/10 hover:text-white dark:hover:bg-black/10 dark:hover:text-zinc-950"
-                aria-label={hideAmounts ? "Show account amounts" : "Hide account amounts"}
+                aria-label={hideBalance ? "Show account amounts" : "Hide account amounts"}
               >
-                {hideAmounts ? (
+                {hideBalance ? (
                   <EyeOff className="h-5 w-5" />
                 ) : (
                   <Eye className="h-5 w-5" />
@@ -451,7 +449,7 @@ export default function DashboardPage() {
 
                 <div className="mt-2 flex flex-wrap items-end gap-3">
                   <h2 className="text-4xl font-bold tracking-tight sm:text-4xl">
-                    {formatCurrency(netValue, hideAmounts)}
+                    {hideBalance ? "******" : (activeTab === "Billing" ? "$0.00" : formatCurrency(netValue))}
                   </h2>
                   <span className="mb-2 text-sm font-medium text-zinc-500">
                     USD
@@ -526,7 +524,7 @@ export default function DashboardPage() {
                       Today's profit
                     </p>
                     <p className="mt-2 text-xl font-bold text-emerald-600 dark:text-emerald-400">
-                      {hideAmounts ? "••••••" : `+$${data.todayProfit.toFixed(2)}`}
+                      +${data.todayProfit.toFixed(2)}
                     </p>
                   </div>
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400">
@@ -580,7 +578,7 @@ export default function DashboardPage() {
                       Monthly profit
                     </p>
                     <p className="mt-2 text-xl font-bold text-emerald-600 dark:text-emerald-400">
-                      {hideAmounts ? "••••••" : `+$${data.monthlyProfit.toFixed(2)}`}
+                      +${data.monthlyProfit.toFixed(2)}
                     </p>
                   </div>
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-100 text-purple-600 dark:bg-purple-950/30 dark:text-purple-400">
@@ -677,7 +675,7 @@ export default function DashboardPage() {
                         Plan fee
                       </p>
                       <p className="mt-1 font-bold">
-                        {formatCurrency(data.plan.amount, hideAmounts)}
+                        {formatCurrency(data.plan.amount)}
                       </p>
                     </div>
                     <div>
@@ -857,7 +855,7 @@ export default function DashboardPage() {
                             }`}
                           >
                             {trade.profit >= 0 ? "+" : "-"}
-                            {formatCurrency(trade.profit, hideAmounts)}
+                            {formatCurrency(trade.profit)}
                           </div>
                         </td>
 

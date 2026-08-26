@@ -147,7 +147,7 @@ export default function UserSidebar({
         {
           name: "Connect Deriv",
           icon: DatabasePlus,
-          href: `${basePath}/mt5-connection`,
+          href: `${basePath}/connect-deriv`,
         },
         {
           name: "How to Connect",
