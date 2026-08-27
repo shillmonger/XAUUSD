@@ -120,12 +120,12 @@ function BottomSheet({
 
   return (
     <div
-      className="fixed inset-0 z-500 flex items-end justify-center bg-black/60 backdrop-blur-sm transition-opacity duration-300 sm:items-center sm:justify-center"
+      className="fixed inset-0 z-500 flex items-end justify-center bg-black/40 backdrop-blur-sm transition-opacity duration-300 sm:items-center sm:justify-center"
       onClick={dismissible ? onClose : undefined}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`w-full transform overflow-hidden rounded-t-[2rem] bg-background shadow-2xl transition-transform duration-300 ease-out sm:max-w-[400px] sm:translate-y-0 sm:rounded-[1.5rem] sm:shadow-xl sm:shadow-black/5 sm:transition-none ${
+        className={`w-full transform overflow-hidden rounded-t-[2rem] bg-card shadow-2xl border border-border/50 transition-transform duration-300 ease-out sm:max-w-[400px] sm:translate-y-0 sm:rounded-[1.5rem] sm:shadow-xl sm:shadow-black/5 sm:transition-none ${
           entered ? "translate-y-0" : "translate-y-full"
         }`}
       >
