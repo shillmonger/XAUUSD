@@ -1,0 +1,146 @@
+import { NextRequest, NextResponse } from 'next/server';
+import connectDB from '@/lib/db';
+import User from '@/models/User';
+import DerivAccount from '@/models/DerivAccount';
+import OAuthState from '@/models/OAuthState';
+
+export async function GET(request: NextRequest) {
+  try {
+    // Get the code and state from query parameters
+    const searchParams = request.nextUrl.searchParams;
+    const code = searchParams.get('code');
+    const state = searchParams.get('state');
+
+    if (!code || !state) {
+      return NextResponse.redirect(
+        new URL('/UserDashboard/connect-deriv?error=missing_params', process.env.NEXT_PUBLIC_APP_URL!)
+      );
+    }
+
+    // Connect to database
+    await connectDB();
+
+    // Find the OAuth state record
+    const oauthState = await OAuthState.findOne({ state });
+    if (!oauthState) {
+      return NextResponse.redirect(
+        new URL('/UserDashboard/connect-deriv?error=invalid_state', process.env.NEXT_PUBLIC_APP_URL!)
+      );
+    }
+
+    // Check if the OAuth state has expired
+    if (oauthState.expiresAt < new Date()) {
+      await OAuthState.deleteOne({ state });
+      return NextResponse.redirect(
+        new URL('/UserDashboard/connect-deriv?error=expired_state', process.env.NEXT_PUBLIC_APP_URL!)
+      );
+    }
+
+    // Exchange authorization code for access token
+    const tokenResponse = await fetch('https://auth.deriv.com/oauth2/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        grant_type: 'authorization_code',
+        code: code,
+        redirect_uri: process.env.DERIV_REDIRECT_URI!,
+        client_id: process.env.DERIV_CLIENT_ID!,
+        client_secret: process.env.DERIV_CLIENT_SECRET!,
+        code_verifier: oauthState.codeVerifier,
+      }),
+    });
+
+    if (!tokenResponse.ok) {
+      const errorText = await tokenResponse.text();
+      console.error('Token exchange failed:', errorText);
+      await OAuthState.deleteOne({ state });
+      return NextResponse.redirect(
+        new URL('/UserDashboard/connect-deriv?error=token_exchange_failed', process.env.NEXT_PUBLIC_APP_URL!)
+      );
+    }
+
+    const tokenData = await tokenResponse.json();
+    const accessToken = tokenData.access_token;
+
+    // Verify the connected Deriv account using the access token
+    const accountResponse = await fetch('https://api.deriv.com/v3/account', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      },
+    });
+
+    if (!accountResponse.ok) {
+      console.error('Account verification failed');
+      await OAuthState.deleteOne({ state });
+      return NextResponse.redirect(
+        new URL('/UserDashboard/connect-deriv?error=account_verification_failed', process.env.NEXT_PUBLIC_APP_URL!)
+      );
+    }
+
+    const accountData = await accountResponse.json();
+    
+    if (!accountData.account || !accountData.account.loginid) {
+      console.error('Invalid account data received');
+      await OAuthState.deleteOne({ state });
+      return NextResponse.redirect(
+        new URL('/UserDashboard/connect-deriv?error=invalid_account_data', process.env.NEXT_PUBLIC_APP_URL!)
+      );
+    }
+
+    const derivAccountId = accountData.account.loginid;
+    const accountType = accountData.account.account_type === 'demo' ? 'demo' : 'real';
+
+    // Check if this Deriv account is already connected to another user
+    const existingConnection = await DerivAccount.findOne({ derivAccountId });
+    if (existingConnection && existingConnection.userId.toString() !== oauthState.userId.toString()) {
+      await OAuthState.deleteOne({ state });
+      return NextResponse.redirect(
+        new URL('/UserDashboard/connect-deriv?error=account_already_connected', process.env.NEXT_PUBLIC_APP_URL!)
+      );
+    }
+
+    // Calculate token expiration (Deriv tokens typically expire after a certain time)
+    const tokenExpiresAt = new Date(Date.now() + (tokenData.expires_in || 3600) * 1000);
+
+    // Store or update the Deriv account connection
+    if (existingConnection) {
+      // Update existing connection
+      existingConnection.accessTokenEncrypted = accessToken;
+      existingConnection.tokenExpiresAt = tokenExpiresAt;
+      existingConnection.connectionStatus = 'connected';
+      existingConnection.connectedAt = new Date();
+      existingConnection.lastVerifiedAt = new Date();
+      await existingConnection.save();
+    } else {
+      // Create new connection
+      await DerivAccount.create({
+        userId: oauthState.userId,
+        broker: 'deriv',
+        derivAccountId,
+        accountType,
+        connectionStatus: 'connected',
+        accessTokenEncrypted: accessToken,
+        tokenExpiresAt,
+        connectedAt: new Date(),
+        lastVerifiedAt: new Date(),
+      });
+    }
+
+    // Delete the temporary OAuth state
+    await OAuthState.deleteOne({ state });
+
+    // Redirect to the connect-deriv page with success
+    return NextResponse.redirect(
+      new URL('/UserDashboard/connect-deriv?success=true', process.env.NEXT_PUBLIC_APP_URL!)
+    );
+
+  } catch (error) {
+    console.error('Deriv callback error:', error);
+    return NextResponse.redirect(
+      new URL('/UserDashboard/connect-deriv?error=server_error', process.env.NEXT_PUBLIC_APP_URL!)
+    );
+  }
+}

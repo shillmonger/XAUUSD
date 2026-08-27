@@ -138,7 +138,7 @@ function BottomSheet({
 export default function ConnectDerivPage() {
   const router = useRouter();
   const [derivConnected, setDerivConnected] = useState(false);
-  const [accountId] = useState("CR****1234");
+  const [accountId, setAccountId] = useState("CR****1234");
   const [accountType, setAccountType] = useState<"DEMO" | "LIVE">("DEMO");
   const [accountStatus] = useState("Active");
   const [startingBalance] = useState(10000);
@@ -146,6 +146,7 @@ export default function ConnectDerivPage() {
     "OFF",
   );
   const [subscriptionStatus] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   
   // Image slider state
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -165,33 +166,98 @@ export default function ConnectDerivPage() {
     };
   }, []);
 
-  const handleConnect = (type: "DEMO" | "LIVE") => {
-    setAccountType(type);
-    setDerivConnected(true);
-    setBotStatus("OFF");
-
-    toast.promise(
-      new Promise((resolve) => setTimeout(resolve, 1200)),
-      {
-        loading: `Connecting your ${type === "LIVE" ? "Live" : "Demo"} account...`,
-        success: (
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-            <span>Your ${type === "LIVE" ? "Live" : "Demo"} account is now linked</span>
-          </div>
-        ),
+  // Check connection status on mount and when OAuth callback returns
+  useEffect(() => {
+    const checkConnectionStatus = async () => {
+      try {
+        const response = await fetch('/api/deriv/status');
+        const data = await response.json();
+        
+        if (data.connected) {
+          setDerivConnected(true);
+          setAccountId(data.accountId);
+          setAccountType(data.accountType as "DEMO" | "LIVE");
+        } else {
+          setDerivConnected(false);
+        }
+      } catch (error) {
+        console.error('Failed to check connection status:', error);
       }
-    );
+    };
+
+    checkConnectionStatus();
+
+    // Check for OAuth callback success/error
+    const urlParams = new URLSearchParams(window.location.search);
+    const success = urlParams.get('success');
+    const error = urlParams.get('error');
+
+    if (success === 'true') {
+      toast.success(
+        <div className="flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+          <span>Deriv account connected successfully!</span>
+        </div>
+      );
+      // Clean up URL
+      window.history.replaceState({}, '', window.location.pathname);
+    } else if (error) {
+      let errorMessage = 'Failed to connect Deriv account';
+      switch (error) {
+        case 'missing_params':
+          errorMessage = 'Missing required parameters';
+          break;
+        case 'invalid_state':
+          errorMessage = 'Invalid OAuth state';
+          break;
+        case 'expired_state':
+          errorMessage = 'OAuth session expired';
+          break;
+        case 'token_exchange_failed':
+          errorMessage = 'Failed to exchange authorization code';
+          break;
+        case 'account_verification_failed':
+          errorMessage = 'Failed to verify Deriv account';
+          break;
+        case 'invalid_account_data':
+          errorMessage = 'Invalid account data received';
+          break;
+        case 'account_already_connected':
+          errorMessage = 'This Deriv account is already connected to another user';
+          break;
+        case 'server_error':
+          errorMessage = 'Server error occurred';
+          break;
+      }
+      toast.error(
+        <div className="flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 text-red-500" />
+          <span>{errorMessage}</span>
+        </div>
+      );
+      // Clean up URL
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
+
+  const handleConnect = () => {
+    setIsLoading(true);
+    // Redirect to the OAuth connect endpoint
+    window.location.href = '/api/deriv/connect';
   };
 
-  const handleDisconnectDeriv = () => {
+  const handleDisconnectDeriv = async () => {
     toast.promise(
-      new Promise((resolve) => {
-        setTimeout(() => {
-          setDerivConnected(false);
-          setBotStatus("OFF");
-          resolve(null);
-        }, 1200);
+      fetch('/api/deriv/disconnect', {
+        method: 'POST',
+      }).then(async (response) => {
+        if (!response.ok) {
+          throw new Error('Failed to disconnect');
+        }
+        const data = await response.json();
+        setDerivConnected(false);
+        setBotStatus("OFF");
+        return data;
       }),
       {
         loading: "Disconnecting your Deriv account...",
@@ -201,6 +267,7 @@ export default function ConnectDerivPage() {
             <span>Your Deriv account has been disconnected</span>
           </div>
         ),
+        error: "Failed to disconnect Deriv account",
       }
     );
   };
@@ -298,7 +365,7 @@ export default function ConnectDerivPage() {
                       Connect Deriv Account
                     </h2>
                     <p className="text-muted-foreground text-sm leading-relaxed font-medium">
-                      Easily link your Deriv account to the platform for seamless copy trading. Choose your account type below.
+                      Easily link your Deriv account to the platform for seamless copy trading. Your account type (Demo or Live) will be detected automatically.
                     </p>
                   </div>
 
@@ -314,29 +381,29 @@ export default function ConnectDerivPage() {
                       </div>
                     </div>
                     <div className="text-right font-mono text-sm font-black text-[#D4AF37]">
-                      LIVE & DEMO
+                      AUTO DETECT
                     </div>
                   </div>
 
-                  {/* Action Buttons */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <Button
-                      size="lg"
-                      onClick={() => handleConnect("DEMO")}
-                      className="h-12 w-full cursor-pointer rounded-full bg-[#D4AF37] px-5 text-sm font-semibold text-black shadow-md shadow-[#D4AF37]/20 hover:bg-[#c9a227]"
-                    >
-                      <span className="whitespace-nowrap">Connect Demo</span>
-                    </Button>
-
-                    <Button
-                      size="lg"
-                      variant="outline"
-                      onClick={() => handleConnect("LIVE")}
-                      className="h-12 w-full cursor-pointer rounded-full border-[#D4AF37]/40 px-5 text-sm font-semibold hover:border-[#D4AF37] hover:bg-[#D4AF37]/10"
-                    >
-                      <span className="whitespace-nowrap">Connect Live</span>
-                    </Button>
-                  </div>
+                  {/* Action Button */}
+                  <Button
+                    size="lg"
+                    onClick={handleConnect}
+                    disabled={isLoading}
+                    className="h-12 w-full cursor-pointer rounded-full bg-[#D4AF37] px-5 text-sm font-semibold text-black shadow-md shadow-[#D4AF37]/20 hover:bg-[#c9a227] disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isLoading ? (
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span className="whitespace-nowrap">Connecting...</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <Link2 className="w-4 h-4" />
+                        <span className="whitespace-nowrap">Connect Deriv Account</span>
+                      </div>
+                    )}
+                  </Button>
                 </div>
               </BottomSheet>
             </div>
