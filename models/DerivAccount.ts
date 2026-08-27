@@ -11,6 +11,12 @@ export interface IDerivAccount extends Document {
   tokenExpiresAt: Date;
   connectedAt: Date;
   lastVerifiedAt: Date;
+  disconnectedAt?: Date;
+  // Additional account details from Deriv API
+  balance?: string;
+  currency?: string;
+  accountStatus?: string;
+  group?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -54,6 +60,22 @@ const DerivAccountSchema: Schema<IDerivAccount> = new Schema(
     },
     lastVerifiedAt: {
       type: Date,
+    },
+    disconnectedAt: {
+      type: Date,
+    },
+    // Additional account details from Deriv API
+    balance: {
+      type: String,
+    },
+    currency: {
+      type: String,
+    },
+    accountStatus: {
+      type: String,
+    },
+    group: {
+      type: String,
     },
   },
   {

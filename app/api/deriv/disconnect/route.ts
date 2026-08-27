@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     // Connect to database
     await connectDB();
 
-    // Find and delete the user's Deriv account connection
+    // Find and update the user's Deriv account connection
     const derivAccount = await DerivAccount.findOne({ userId });
     
     if (!derivAccount) {
@@ -40,8 +40,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Delete the connection
-    await DerivAccount.deleteOne({ userId });
+    // Update connection status to disconnected instead of deleting
+    derivAccount.connectionStatus = 'disconnected';
+    derivAccount.disconnectedAt = new Date();
+    await derivAccount.save();
 
     return NextResponse.json({
       message: 'Deriv account disconnected successfully',

@@ -161,11 +161,17 @@ export async function GET(request: NextRequest) {
 
     const derivAccountId = selectedAccount.account_id;
     const accountType = selectedAccount.account_type === 'demo' ? 'demo' : 'real';
+    const balance = selectedAccount.balance || '0';
+    const currency = selectedAccount.currency || 'USD';
+    const accountStatus = selectedAccount.status || 'unknown';
+    const group = selectedAccount.group || 'unknown';
     
     console.log('Selected Deriv account:', {
       derivAccountId: derivAccountId.substring(0, 8) + '...',
       accountType,
-      status: selectedAccount.status
+      status: accountStatus,
+      balance: balance,
+      currency: currency
     });
 
     // Check if this Deriv account is already connected to another user
@@ -191,6 +197,11 @@ export async function GET(request: NextRequest) {
       existingConnection.connectionStatus = 'connected';
       existingConnection.connectedAt = new Date();
       existingConnection.lastVerifiedAt = new Date();
+      existingConnection.balance = balance;
+      existingConnection.currency = currency;
+      existingConnection.accountStatus = accountStatus;
+      existingConnection.group = group;
+      existingConnection.disconnectedAt = undefined; // Clear disconnect time if reconnecting
       await existingConnection.save();
     } else {
       // Create new connection
@@ -204,6 +215,10 @@ export async function GET(request: NextRequest) {
         tokenExpiresAt,
         connectedAt: new Date(),
         lastVerifiedAt: new Date(),
+        balance: balance,
+        currency: currency,
+        accountStatus: accountStatus,
+        group: group,
       });
     }
 

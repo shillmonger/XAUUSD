@@ -62,6 +62,9 @@ export async function GET(request: NextRequest) {
       connectionStatus: derivAccount.connectionStatus,
       connectedAt: derivAccount.connectedAt,
       lastVerifiedAt: derivAccount.lastVerifiedAt,
+      balance: derivAccount.balance || '0',
+      currency: derivAccount.currency || 'USD',
+      accountStatus: derivAccount.accountStatus || 'unknown',
     });
 
   } catch (error) {

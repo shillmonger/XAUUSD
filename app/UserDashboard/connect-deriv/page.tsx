@@ -141,7 +141,8 @@ export default function ConnectDerivPage() {
   const [accountId, setAccountId] = useState<string>("");
   const [accountType, setAccountType] = useState<"DEMO" | "LIVE">("DEMO");
   const [accountStatus, setAccountStatus] = useState<string>("");
-  const [startingBalance, setStartingBalance] = useState<number>(0);
+  const [balance, setBalance] = useState<string>("0");
+  const [currency, setCurrency] = useState<string>("USD");
   const [botStatus, setBotStatus] = useState<"ACTIVE" | "PAUSED" | "OFF">(
     "OFF",
   );
@@ -177,13 +178,15 @@ export default function ConnectDerivPage() {
           setDerivConnected(true);
           setAccountId(data.accountId);
           setAccountType(data.accountType as "DEMO" | "LIVE");
-          setAccountStatus("Active"); // Deriv doesn't provide this in status API
-          setStartingBalance(0); // Would need separate API call for balance
+          setAccountStatus(data.accountStatus || "Active");
+          setBalance(data.balance || "0");
+          setCurrency(data.currency || "USD");
         } else {
           setDerivConnected(false);
           setAccountId("");
           setAccountStatus("");
-          setStartingBalance(0);
+          setBalance("0");
+          setCurrency("USD");
         }
       } catch (error) {
         console.error('Failed to check connection status:', error);
@@ -282,7 +285,8 @@ export default function ConnectDerivPage() {
   };
 
   const handleSwitchAccountType = (type: "DEMO" | "LIVE") => {
-    setAccountType(type);
+    // Account type is determined by the connected Deriv account, not UI toggle
+    // This function is kept for UI consistency but doesn't change actual account type
     if (type === "DEMO") setBotStatus("OFF");
   };
 
@@ -521,12 +525,12 @@ export default function ConnectDerivPage() {
 
             <div className="rounded-xl border border-[#D4AF37]/25 bg-[#D4AF37]/5 p-3.5 shadow-[0_0_20px_-8px_rgba(212,175,55,0.35)]">
               <p className="text-[10px] font-black uppercase tracking-widest text-[#D4AF37]">
-                STARTING BALANCE
+                CURRENT BALANCE
               </p>
               <p className="mt-1 font-mono text-base font-black tracking-tight text-[#D4AF37]">
-                $
-                {startingBalance.toLocaleString("en-US", {
+                {currency} {parseFloat(balance).toLocaleString("en-US", {
                   minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
                 })}
               </p>
             </div>
@@ -698,6 +702,11 @@ export default function ConnectDerivPage() {
                     : "text-[#D4AF37] font-bold",
               },
               {
+                label: "CURRENCY",
+                value: currency,
+                className: "text-foreground font-bold",
+              },
+              {
                 label: "BOT_STATUS",
                 value: botStatus,
                 className: "text-foreground font-bold",
@@ -710,15 +719,18 @@ export default function ConnectDerivPage() {
                   : "text-amber-600 dark:text-amber-500 font-bold",
               },
               {
-                label: "STARTING_BAL",
-                value: `$${startingBalance}`,
+                label: "BALANCE",
+                value: `${parseFloat(balance).toLocaleString("en-US", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}`,
                 className: "text-foreground font-bold",
               },
             ].map((row, i) => (
               <div
                 key={row.label}
                 className={`flex items-center justify-between py-2 ${
-                  i < 4 ? "border-b border-border/80" : ""
+                  i < 5 ? "border-b border-border/80" : ""
                 }`}
               >
                 <span className="text-muted-foreground">{row.label}</span>
