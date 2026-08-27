@@ -25,9 +25,13 @@ export function middleware(request: NextRequest) {
   if (isPublicRoute) {
     // If user is already authenticated and tries to access auth pages, redirect to dashboard
     if (token && (pathname.startsWith('/auth-page') && !pathname.includes('/verify'))) {
-      const decoded = verifyToken(token);
-      if (decoded) {
-        return NextResponse.redirect(new URL('/UserDashboard/dashboard', request.url));
+      try {
+        const decoded = verifyToken(token);
+        if (decoded) {
+          return NextResponse.redirect(new URL('/UserDashboard/dashboard', request.url));
+        }
+      } catch (error) {
+        // Invalid token, continue to public route
       }
     }
     return NextResponse.next();
@@ -39,8 +43,12 @@ export function middleware(request: NextRequest) {
   }
 
   // Verify token
-  const decoded = verifyToken(token);
-  if (!decoded) {
+  try {
+    const decoded = verifyToken(token);
+    if (!decoded) {
+      return NextResponse.redirect(new URL('/auth-page/login', request.url));
+    }
+  } catch (error) {
     return NextResponse.redirect(new URL('/auth-page/login', request.url));
   }
 
