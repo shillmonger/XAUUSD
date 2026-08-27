@@ -309,7 +309,8 @@ export default function ConnectDerivPage() {
   };
 
   const handleSwitchAccountType = async (type: "DEMO" | "LIVE") => {
-    const accountTypeParam = type.toLowerCase() as 'demo' | 'real';
+    // Convert "LIVE" to "real" for the API, "DEMO" to "demo"
+    const accountTypeParam = type === "LIVE" ? "real" : "demo";
     
     try {
       const response = await fetch('/api/deriv/switch-account', {
@@ -326,6 +327,19 @@ export default function ConnectDerivPage() {
       }
 
       const data = await response.json();
+      
+      // Check if OAuth is needed
+      if (data.needsAuth) {
+        toast.info(
+          <div className="flex items-center gap-2">
+            <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+            <span>Connecting to {type} account...</span>
+          </div>
+        );
+        // Redirect to Deriv OAuth
+        window.location.href = data.authUrl;
+        return;
+      }
       
       // Update local state with the switched account data
       setAccountType(data.accountType as "DEMO" | "LIVE");

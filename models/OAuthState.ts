@@ -6,6 +6,7 @@ export interface IOAuthState extends Document {
   state: string;
   codeVerifier: string;
   codeChallenge: string;
+  targetAccountType?: 'demo' | 'real';
   expiresAt: Date;
   createdAt: Date;
 }
@@ -29,6 +30,10 @@ const OAuthStateSchema: Schema<IOAuthState> = new Schema(
     codeChallenge: {
       type: String,
       required: [true, 'Code challenge is required'],
+    },
+    targetAccountType: {
+      type: String,
+      enum: ['demo', 'real'],
     },
     expiresAt: {
       type: Date,

@@ -132,12 +132,22 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Select account: prefer active demo, fallback to active real
+    // Select account based on targetAccountType from OAuth state, or default preference
     const accounts = accountData.data;
+    const targetAccountType = oauthState.targetAccountType || 'demo';
+    
     let selectedAccount = accounts.find((acc: any) => 
-      acc.status === 'active' && acc.account_type === 'demo'
+      acc.status === 'active' && acc.account_type === targetAccountType
     );
     
+    // Fallback to demo if target type not found
+    if (!selectedAccount && targetAccountType !== 'demo') {
+      selectedAccount = accounts.find((acc: any) => 
+        acc.status === 'active' && acc.account_type === 'demo'
+      );
+    }
+    
+    // Fallback to real if demo not found
     if (!selectedAccount) {
       selectedAccount = accounts.find((acc: any) => acc.status === 'active' && acc.account_type === 'real');
     }
