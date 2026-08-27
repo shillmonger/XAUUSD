@@ -174,6 +174,8 @@ export default function ConnectDerivPage() {
         const response = await fetch('/api/deriv/status');
         const data = await response.json();
         
+        console.log('Status API response:', data);
+        
         if (data.connected) {
           setDerivConnected(true);
           setAccountId(data.accountId);
@@ -182,6 +184,7 @@ export default function ConnectDerivPage() {
           setBalance(data.balance || "0");
           setCurrency(data.currency || "USD");
           setBotStatus(data.botStatus || "OFF");
+          console.log('Set accountType to:', data.accountType);
         } else {
           setDerivConnected(false);
           setAccountId("");
