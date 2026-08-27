@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import DerivAccount from '@/models/DerivAccount';
+import User from '@/models/User';
 import { verifyToken } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
@@ -30,9 +31,19 @@ export async function GET(request: NextRequest) {
     // Connect to database
     await connectDB();
 
-    // Find the user's Deriv account connection
+    // Get user to determine active account type
+    const user = await User.findById(userId);
+    if (!user) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      );
+    }
+
+    // Find the user's Deriv account connection for the active account type
     const derivAccount = await DerivAccount.findOne({ 
       userId,
+      accountType: user.activeDerivAccountType || 'demo',
       connectionStatus: 'connected'
     });
 
@@ -66,6 +77,7 @@ export async function GET(request: NextRequest) {
       currency: derivAccount.currency || 'USD',
       accountStatus: derivAccount.accountStatus || 'unknown',
       botStatus: derivAccount.botStatus || 'OFF',
+      activeAccountType: user.activeDerivAccountType || 'demo',
     });
 
   } catch (error) {

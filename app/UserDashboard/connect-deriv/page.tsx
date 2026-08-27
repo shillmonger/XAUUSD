@@ -269,8 +269,30 @@ export default function ConnectDerivPage() {
           throw new Error('Failed to disconnect');
         }
         const data = await response.json();
-        setDerivConnected(false);
-        setBotStatus("OFF");
+        
+        // Reload status to check if user has another connected account
+        const statusResponse = await fetch('/api/deriv/status');
+        const statusData = await statusResponse.json();
+        
+        if (statusData.connected) {
+          // User has another connected account, switch to it
+          setDerivConnected(true);
+          setAccountId(statusData.accountId);
+          setAccountType(statusData.accountType as "DEMO" | "LIVE");
+          setAccountStatus(statusData.accountStatus || "Active");
+          setBalance(statusData.balance || "0");
+          setCurrency(statusData.currency || "USD");
+          setBotStatus(statusData.botStatus || "OFF");
+        } else {
+          // No more connected accounts
+          setDerivConnected(false);
+          setAccountId("");
+          setAccountStatus("");
+          setBalance("0");
+          setCurrency("USD");
+          setBotStatus("OFF");
+        }
+        
         return data;
       }),
       {
@@ -286,10 +308,47 @@ export default function ConnectDerivPage() {
     );
   };
 
-  const handleSwitchAccountType = (type: "DEMO" | "LIVE") => {
-    // Account type is determined by the connected Deriv account, not UI toggle
-    // This function is kept for UI consistency but doesn't change actual account type
-    if (type === "DEMO") setBotStatus("OFF");
+  const handleSwitchAccountType = async (type: "DEMO" | "LIVE") => {
+    const accountTypeParam = type.toLowerCase() as 'demo' | 'real';
+    
+    try {
+      const response = await fetch('/api/deriv/switch-account', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ accountType: accountTypeParam }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to switch account');
+      }
+
+      const data = await response.json();
+      
+      // Update local state with the switched account data
+      setAccountType(data.accountType as "DEMO" | "LIVE");
+      setAccountId(data.accountId);
+      setBalance(data.balance);
+      setCurrency(data.currency);
+      setBotStatus(data.botStatus);
+      
+      toast.success(
+        <div className="flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+          <span>Switched to {type} account</span>
+        </div>
+      );
+    } catch (error) {
+      console.error('Failed to switch account:', error);
+      toast.error(
+        <div className="flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 text-red-500" />
+          <span>{error instanceof Error ? error.message : 'Failed to switch account'}</span>
+        </div>
+      );
+    }
   };
 
   const handleToggleBot = async () => {
@@ -775,13 +834,6 @@ export default function ConnectDerivPage() {
                 label: "BOT_STATUS",
                 value: botStatus,
                 className: "text-foreground font-bold",
-              },
-              {
-                label: "SUBSCRIPTION",
-                value: subscriptionStatus ? "ACTIVE" : "INACTIVE",
-                className: subscriptionStatus
-                  ? "text-emerald-600 dark:text-emerald-400 font-bold"
-                  : "text-amber-600 dark:text-amber-500 font-bold",
               },
               {
                 label: "BALANCE",

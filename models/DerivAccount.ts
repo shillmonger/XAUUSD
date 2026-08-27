@@ -37,7 +37,6 @@ const DerivAccountSchema: Schema<IDerivAccount> = new Schema(
     derivAccountId: {
       type: String,
       required: [true, 'Deriv Account ID is required'],
-      unique: true,
     },
     accountType: {
       type: String,
@@ -93,6 +92,9 @@ const DerivAccountSchema: Schema<IDerivAccount> = new Schema(
 
 // Index for user lookups
 DerivAccountSchema.index({ userId: 1 });
+
+// Compound unique index to ensure one account per user per type
+DerivAccountSchema.index({ userId: 1, accountType: 1 }, { unique: true });
 
 const DerivAccount: Model<IDerivAccount> = mongoose.models.DerivAccount || mongoose.model<IDerivAccount>('DerivAccount', DerivAccountSchema);
 

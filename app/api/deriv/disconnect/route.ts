@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import DerivAccount from '@/models/DerivAccount';
+import User from '@/models/User';
 import { verifyToken } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
@@ -30,8 +31,20 @@ export async function POST(request: NextRequest) {
     // Connect to database
     await connectDB();
 
-    // Find and update the user's Deriv account connection
-    const derivAccount = await DerivAccount.findOne({ userId });
+    // Get user to determine active account type
+    const user = await User.findById(userId);
+    if (!user) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      );
+    }
+
+    // Find and update the user's active Deriv account connection
+    const derivAccount = await DerivAccount.findOne({ 
+      userId,
+      accountType: user.activeDerivAccountType || 'demo'
+    });
     
     if (!derivAccount) {
       return NextResponse.json(
@@ -45,6 +58,20 @@ export async function POST(request: NextRequest) {
     derivAccount.disconnectedAt = new Date();
     derivAccount.botStatus = 'OFF';
     await derivAccount.save();
+
+    // Check if user has another connected account type to switch to
+    const otherAccountType = user.activeDerivAccountType === 'demo' ? 'real' : 'demo';
+    const otherAccount = await DerivAccount.findOne({ 
+      userId,
+      accountType: otherAccountType,
+      connectionStatus: 'connected'
+    });
+
+    if (otherAccount) {
+      // Switch to the other connected account
+      user.activeDerivAccountType = otherAccountType;
+      await user.save();
+    }
 
     return NextResponse.json({
       message: 'Deriv account disconnected successfully',

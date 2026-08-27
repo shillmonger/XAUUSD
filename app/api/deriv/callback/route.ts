@@ -183,6 +183,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Check if user already has an account of this type connected
+    const existingUserAccountType = await DerivAccount.findOne({ 
+      userId: oauthState.userId, 
+      accountType 
+    });
+
     // Calculate token expiration (Deriv tokens typically expire after a certain time)
     const tokenExpiresAt = new Date(Date.now() + (tokenData.expires_in || 3600) * 1000);
 
@@ -191,7 +197,7 @@ export async function GET(request: NextRequest) {
 
     // Store or update the Deriv account connection
     if (existingConnection) {
-      // Update existing connection
+      // Update existing connection (same account ID)
       existingConnection.accessTokenEncrypted = encryptedAccessToken;
       existingConnection.tokenExpiresAt = tokenExpiresAt;
       existingConnection.connectionStatus = 'connected';
@@ -203,6 +209,20 @@ export async function GET(request: NextRequest) {
       existingConnection.group = group;
       existingConnection.disconnectedAt = undefined; // Clear disconnect time if reconnecting
       await existingConnection.save();
+    } else if (existingUserAccountType) {
+      // User already has this account type connected, update it with new account
+      existingUserAccountType.derivAccountId = derivAccountId;
+      existingUserAccountType.accessTokenEncrypted = encryptedAccessToken;
+      existingUserAccountType.tokenExpiresAt = tokenExpiresAt;
+      existingUserAccountType.connectionStatus = 'connected';
+      existingUserAccountType.connectedAt = new Date();
+      existingUserAccountType.lastVerifiedAt = new Date();
+      existingUserAccountType.balance = balance;
+      existingUserAccountType.currency = currency;
+      existingUserAccountType.accountStatus = accountStatus;
+      existingUserAccountType.group = group;
+      existingUserAccountType.disconnectedAt = undefined;
+      await existingUserAccountType.save();
     } else {
       // Create new connection
       await DerivAccount.create({
@@ -220,6 +240,13 @@ export async function GET(request: NextRequest) {
         accountStatus: accountStatus,
         group: group,
       });
+    }
+
+    // Update user's active account type to the newly connected account
+    const user = await User.findById(oauthState.userId);
+    if (user) {
+      user.activeDerivAccountType = accountType;
+      await user.save();
     }
 
     // Delete the temporary OAuth state

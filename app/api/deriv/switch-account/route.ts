@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
-import DerivAccount from '@/models/DerivAccount';
 import User from '@/models/User';
+import DerivAccount from '@/models/DerivAccount';
 import { verifyToken } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
@@ -30,12 +30,12 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body = await request.json();
-    const { botStatus } = body;
+    const { accountType } = body;
 
-    // Validate botStatus
-    if (!botStatus || !['ACTIVE', 'PAUSED', 'OFF'].includes(botStatus)) {
+    // Validate accountType
+    if (!accountType || !['demo', 'real'].includes(accountType)) {
       return NextResponse.json(
-        { error: 'Invalid bot status. Must be ACTIVE, PAUSED, or OFF' },
+        { error: 'Invalid account type. Must be demo or real' },
         { status: 400 }
       );
     }
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     // Connect to database
     await connectDB();
 
-    // Get user to determine active account type
+    // Find user
     const user = await User.findById(userId);
     if (!user) {
       return NextResponse.json(
@@ -52,33 +52,37 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Find the user's Deriv account connection for the active account type
-    const derivAccount = await DerivAccount.findOne({ 
+    // Check if user has an account of the requested type connected
+    const targetAccount = await DerivAccount.findOne({ 
       userId,
-      accountType: user.activeDerivAccountType || 'demo',
+      accountType,
       connectionStatus: 'connected'
     });
 
-    if (!derivAccount) {
+    if (!targetAccount) {
       return NextResponse.json(
-        { error: 'No connected Deriv account found' },
+        { error: `No ${accountType} account connected. Please connect a ${accountType} account first.` },
         { status: 404 }
       );
     }
 
-    // Update bot status
-    derivAccount.botStatus = botStatus;
-    await derivAccount.save();
+    // Update user's active account type
+    user.activeDerivAccountType = accountType;
+    await user.save();
 
     return NextResponse.json({
       success: true,
-      botStatus: derivAccount.botStatus,
+      activeAccountType: user.activeDerivAccountType,
+      accountId: targetAccount.derivAccountId,
+      balance: targetAccount.balance || '0',
+      currency: targetAccount.currency || 'USD',
+      botStatus: targetAccount.botStatus || 'OFF',
     });
 
   } catch (error) {
-    console.error('Bot status update error:', error);
+    console.error('Switch account error:', error);
     return NextResponse.json(
-      { error: 'Failed to update bot status' },
+      { error: 'Failed to switch account type' },
       { status: 500 }
     );
   }
