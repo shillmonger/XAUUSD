@@ -39,9 +39,9 @@ import {
 const GOLD = "#D4AF37";
 
 const IMAGES = [
-  "https://i.postimg.cc/ZnDX5Ff3/5.jpg",
-  "https://i.postimg.cc/VvF1MffN/Bull-and-Bear.jpg",
-  "https://i.postimg.cc/9Q9sc9yF/6.jpg",
+  "https://i.postimg.cc/j2qtwsZr/man.jpg",
+  "https://i.postimg.cc/BQ6JJnj7/Deriv-com.jpg",
+  "https://i.postimg.cc/cJqW77Fd/deriv.jpg",
 ];
 
 function StatusBadge({
@@ -346,25 +346,28 @@ export default function ConnectDerivPage() {
         {derivConnected && (
           <>
             <section>
-              <Card className="overflow-hidden border-border/50 shadow-md">
-                <CardHeader className="border-b border-border/40 bg-muted/20 pb-5">
+              <Card className="relative overflow-hidden rounded-3xl bg-zinc-950 text-white shadow-2xl dark:bg-white dark:text-zinc-950 border border-border/50">
+                <div className="absolute -right-24 -top-24 h-64 w-64 rounded-full bg-[#D4AF37]/20 blur-3xl" />
+                <div className="absolute -bottom-32 left-1/3 h-72 w-72 rounded-full bg-[#D4AF37]/10 blur-3xl" />
+
+                <div className="relative p-5 sm:p-7 lg:p-8">
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-zinc-950 text-[#D4AF37] dark:bg-zinc-100">
-                        <ShieldCheck className="h-5 w-5" />
+                      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#D4AF37] text-black shadow-lg">
+                        <ShieldCheck className="h-6 w-6" />
                       </div>
 
                       <div>
-                        <CardTitle className="text-base font-bold">
+                        <h3 className="text-lg font-black tracking-tight">
                           Account Overview
-                        </CardTitle>
-                        <CardDescription className="text-xs">
+                        </h3>
+                        <p className="text-xs text-zinc-400 dark:text-zinc-500">
                           Your connected Deriv account details
-                        </CardDescription>
+                        </p>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-3 sm:flex sm:items-center">
+                    <div className="flex items-center gap-3">
                       <StatusBadge status="CONNECTED" />
 
                       <Button
@@ -378,19 +381,17 @@ export default function ConnectDerivPage() {
                       </Button>
                     </div>
                   </div>
-                </CardHeader>
 
-                <CardContent className="pt-4">
-                  <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-                    <div className="rounded-xl border border-border/50 bg-muted/30 p-4">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+                    <div className="rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 p-4">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
                         Account ID
                       </p>
-                      <p className="mt-2 text-sm font-semibold">{accountId}</p>
+                      <p className="mt-2 text-sm font-bold">{accountId}</p>
                     </div>
 
-                    <div className="rounded-xl border border-border/50 bg-muted/30 p-4">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    <div className="rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 p-4">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
                         Account Type
                       </p>
                       <div className="mt-2">
@@ -398,20 +399,20 @@ export default function ConnectDerivPage() {
                       </div>
                     </div>
 
-                    <div className="rounded-xl border border-border/50 bg-muted/30 p-4">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    <div className="rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 p-4">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
                         Account Status
                       </p>
-                      <p className="mt-2 text-sm font-semibold">
+                      <p className="mt-2 text-sm font-bold">
                         {accountStatus}
                       </p>
                     </div>
 
-                    <div className="rounded-xl border border-border/50 bg-muted/30 p-4">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-[#D4AF37]">
+                    <div className="rounded-2xl bg-[#D4AF37]/10 backdrop-blur-sm border border-[#D4AF37]/30 p-4">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-[#D4AF37]">
                         Starting Balance
                       </p>
-                      <p className="mt-2 text-lg font-bold tracking-tight">
+                      <p className="mt-2 text-lg font-black tracking-tight text-[#D4AF37]">
                         $
                         {startingBalance.toLocaleString("en-US", {
                           minimumFractionDigits: 2,
@@ -419,7 +420,7 @@ export default function ConnectDerivPage() {
                       </p>
                     </div>
                   </div>
-                </CardContent>
+                </div>
               </Card>
             </section>
 

@@ -46,6 +46,14 @@ interface TradeRow {
   status: "WIN" | "LOSS" | "OPEN";
 }
 
+interface NewsItem {
+  id: string;
+  title: string;
+  source: string;
+  image: string;
+  url?: string;
+}
+
 interface DashboardData {
   totalSpent: number;
   totalProfit: number;
@@ -60,6 +68,7 @@ interface DashboardData {
   activePlan: number;
   rejectedPlans: number;
   recentTrades: TradeRow[];
+  news: NewsItem[];
   accountStatus: "VERIFIED" | "UNVERIFIED";
   joined: string;
   role: string;
@@ -81,6 +90,10 @@ interface DashboardData {
 type Tab = "Billing" | "Bonus" | "Trading";
 
 const GOLD = "#D4AF37";
+
+// TODO: replace with real thumbnails per article once the news API is wired up.
+const MOCK_NEWS_IMAGE =
+  "https://i.postimg.cc/q7C5L9zC/The-West-Is-Losing-Control-Over-The-Gold-Price.jpg";
 
 function formatDate(date: string) {
   return new Intl.DateTimeFormat("en-US", {
@@ -161,6 +174,38 @@ function QuickAction({
       </div>
 
       <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-[#D4AF37]" />
+    </Link>
+  );
+}
+
+function NewsRow({ item }: { item: NewsItem }) {
+  const content = (
+    <div className="group flex items-start gap-4 py-3 first:pt-0 last:pb-0">
+      <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-muted">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={item.image}
+          alt={item.title}
+          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+        />
+      </div>
+
+      <div className="min-w-0">
+        <p className="line-clamp-2 text-sm font-bold leading-snug text-foreground transition-colors group-hover:text-[#B28D16]">
+          {item.title}
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">{item.source}</p>
+      </div>
+    </div>
+  );
+
+  if (!item.url) {
+    return content;
+  }
+
+  return (
+    <Link href={item.url} target="_blank" rel="noopener noreferrer">
+      {content}
     </Link>
   );
 }
@@ -329,6 +374,42 @@ export default function DashboardPage() {
               status: "WIN",
             },
           ],
+          // Mock data — swap for a real news feed / API response later.
+          news: [
+            {
+              id: "NEWS-001",
+              title:
+                "EUR/USD Analysis: Euro Loses Momentum Following the U.S. PCE Release",
+              source: "Forexcom",
+              image: MOCK_NEWS_IMAGE,
+            },
+            {
+              id: "NEWS-002",
+              title: "Euro: Rally stalls against US Dollar as spreads drive trade – Scotiabank",
+              source: "FX Street",
+              image: MOCK_NEWS_IMAGE,
+            },
+            {
+              id: "NEWS-003",
+              title:
+                "Pound Sterling Price News and Forecast: GBP/USD retreats as sticky PCE revives Fed hike bets",
+              source: "FX Street",
+              image: MOCK_NEWS_IMAGE,
+            },
+            {
+              id: "NEWS-004",
+              title:
+                "U.S. Dollar Moves Higher As PCE Price Index Exceeds Estimates: Analysis For EUR/USD, GBP/USD, USD/CAD, USD/JPY",
+              source: "FXEmpire",
+              image: MOCK_NEWS_IMAGE,
+            },
+            {
+              id: "NEWS-005",
+              title: "USD/CAD Turns Bullish as GBP/USD, AUD/USD Lose Momentum",
+              source: "FXEmpire",
+              image: MOCK_NEWS_IMAGE,
+            },
+          ],
           accountStatus: "VERIFIED",
           joined: "JUL 2026",
           role: "ADMIN",
@@ -396,13 +477,19 @@ export default function DashboardPage() {
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto max-w-7xl space-y-5 py-6">
+      <div className="mx-auto max-w-7xl space-y-5 py-4">
         {/* Main Balance Banner */}
-        <section className="relative overflow-hidden rounded-3xl bg-zinc-950 text-white shadow-2xl dark:bg-white dark:text-zinc-950">
-          <div className="absolute -right-24 -top-24 h-64 w-64 rounded-full bg-[#D4AF37]/20 blur-3xl" />
-          <div className="absolute -bottom-32 left-1/3 h-72 w-72 rounded-full bg-[#D4AF37]/10 blur-3xl" />
+        <section className="relative overflow-hidden rounded-2xl text-white shadow-2xl">
+          <div
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+            style={{
+              backgroundImage: "url(https://i.postimg.cc/R6qcqkWF/bg.jpg)",
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+            }}
+          />
 
-          <div className="relative p-5 sm:p-7 lg:p-8">
+          <div className="relative p-4 sm:p-7 lg:p-5">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-2 overflow-x-auto">
                 {tabs.map((tab) => (
@@ -462,10 +549,10 @@ export default function DashboardPage() {
                   href="/user-dashboard/plans"
                   className="group flex flex-col items-center gap-2"
                 >
-                  <span className="flex h-13 w-13 items-center justify-center rounded-full bg-[#D4AF37] text-black shadow-lg transition group-hover:scale-105">
+                  <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#D4AF37] text-black shadow-lg transition group-hover:scale-105">
                     <Rocket className="h-5 w-5" />
                   </span>
-                  <span className="text-center text-[10px] font-bold uppercase tracking-wider text-zinc-300 dark:text-zinc-600">
+                  <span className="text-center text-[9px] font-bold uppercase tracking-wider text-zinc-300">
                     Subscribe
                   </span>
                 </Link>
@@ -474,10 +561,10 @@ export default function DashboardPage() {
                   href="/user-dashboard/connect"
                   className="group flex flex-col items-center gap-2"
                 >
-                  <span className="flex h-13 w-13 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-300 transition group-hover:border-[#D4AF37] group-hover:text-[#D4AF37] dark:border-zinc-300 dark:bg-zinc-100 dark:text-zinc-700">
+                  <span className="flex h-12 w-12 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-300 transition group-hover:border-[#D4AF37] group-hover:text-[#D4AF37] dark:border-zinc-300 dark:bg-zinc-100 dark:text-zinc-700">
                     <Unplug className="h-5 w-5" />
                   </span>
-                  <span className="text-center text-[10px] font-bold uppercase tracking-wider text-zinc-300 dark:text-zinc-600">
+                  <span className="text-center text-[9px] font-bold uppercase tracking-wider text-zinc-300">
                     Connect
                   </span>
                 </Link>
@@ -486,22 +573,22 @@ export default function DashboardPage() {
                   href="/user-dashboard/predict"
                   className="group flex flex-col items-center gap-2"
                 >
-                  <span className="flex h-13 w-13 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-300 transition group-hover:border-[#D4AF37] group-hover:text-[#D4AF37] dark:border-zinc-300 dark:bg-zinc-100 dark:text-zinc-700">
+                  <span className="flex h-12 w-12 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-300 transition group-hover:border-[#D4AF37] group-hover:text-[#D4AF37] dark:border-zinc-300 dark:bg-zinc-100 dark:text-zinc-700">
                     <BarChart3 className="h-5 w-5" />
                   </span>
-                  <span className="text-center text-[10px] font-bold uppercase tracking-wider text-zinc-300 dark:text-zinc-600">
+                  <span className="text-center text-[9px] font-bold uppercase tracking-wider text-zinc-300">
                     Predict
                   </span>
                 </Link>
-                
+
                 <Link
                   href="/user-dashboard/predict"
                   className="group flex flex-col items-center gap-2"
                 >
-                  <span className="flex h-13 w-13 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-300 transition group-hover:border-[#D4AF37] group-hover:text-[#D4AF37] dark:border-zinc-300 dark:bg-zinc-100 dark:text-zinc-700">
+                  <span className="flex h-12 w-12 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-300 transition group-hover:border-[#D4AF37] group-hover:text-[#D4AF37] dark:border-zinc-300 dark:bg-zinc-100 dark:text-zinc-700">
                     <Brain className="h-5 w-5" />
                   </span>
-                  <span className="text-center text-[10px] font-bold uppercase tracking-wider text-zinc-300 dark:text-zinc-600">
+                  <span className="text-center text-[9px] font-bold uppercase tracking-wider text-zinc-300">
                     AI Insights
                   </span>
                 </Link>
@@ -510,139 +597,11 @@ export default function DashboardPage() {
           </div>
         </section>
 
-
-
-
-           {/* Trading Stats Summary */}
-        <section>
-          <div className="grid gap-4 grid-cols-2 sm:grid-cols-2 lg:grid-cols-4">
-            <Card className="border-border/50 shadow-sm">
-              <CardContent className="px-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                      Today's profit
-                    </p>
-                    <p className="mt-2 text-xl font-bold text-emerald-600 dark:text-emerald-400">
-                      +${data.todayProfit.toFixed(2)}
-                    </p>
-                  </div>
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400">
-                    <TrendingUp className="h-5 w-5" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-border/50 shadow-sm">
-              <CardContent className="px-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                      Win rate
-                    </p>
-                    <p className="mt-2 text-xl font-bold">
-                      {data.winRate.toFixed(1)}%
-                    </p>
-                  </div>
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#D4AF37]/10 text-[#D4AF37]">
-                    <Activity className="h-5 w-5" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-border/50 shadow-sm">
-              <CardContent className="px-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                      Total trades
-                    </p>
-                    <p className="mt-2 text-xl font-bold">
-                      {data.totalTrades}
-                    </p>
-                  </div>
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-blue-600 dark:bg-blue-950/30 dark:text-blue-400">
-                    <History className="h-5 w-5" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-border/50 shadow-sm">
-              <CardContent className="px-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                      Monthly profit
-                    </p>
-                    <p className="mt-2 text-xl font-bold text-emerald-600 dark:text-emerald-400">
-                      +${data.monthlyProfit.toFixed(2)}
-                    </p>
-                  </div>
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-100 text-purple-600 dark:bg-purple-950/30 dark:text-purple-400">
-                    <TrendingUp className="h-5 w-5" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </section>
-
-
-
-        {/* Quick Actions (now full width, replacing the removed metrics/performance sections) */}
-<section className="hidden lg:block">
-          <Card className="border-border/50 shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-sm font-bold uppercase tracking-wider">
-                Quick actions
-              </CardTitle>
-              <CardDescription className="text-xs">
-                Common account tasks.
-              </CardDescription>
-            </CardHeader>
-
-            <CardContent>
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                <QuickAction
-                  href="/user-dashboard/connect"
-                  title="Connect MT5"
-                  description="Link your MetaTrader account"
-                  icon={<Link2 className="h-4 w-4" />}
-                />
-                <QuickAction
-                  href="/user-dashboard/predict"
-                  title="Predict market"
-                  description="View AI-powered insights"
-                  icon={<Brain className="h-4 w-4" />}
-                />
-                <QuickAction
-                  href="/user-dashboard/transactions"
-                  title="View transactions"
-                  description="Review account activity"
-                  icon={<History className="h-4 w-4" />}
-                />
-                <QuickAction
-                  href="/user-dashboard/telegram"
-                  title="Telegram alerts"
-                  description="Manage trade notifications"
-                  icon={<Zap className="h-4 w-4" />}
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </section>
-
-     
-
-        {/* Lower Content */}
-        <section className="flex flex-col gap-6 lg:flex-row lg:gap-6">
-          {/* Right Sidebar - Comes first on mobile, moves to right on desktop */}
-          <div className="flex w-full flex-col gap-6 lg:w-1/3">
+        {/* Sidebar cards: Active plan, System health, News */}
+        <section className="flex flex-col gap-6">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
             {/* Plan Overview */}
-            <Card className="border-border/50 shadow-sm">
+            <Card className="w-full border-border/50 shadow-sm lg:w-1/3">
               <CardHeader className="flex flex-row items-start justify-between space-y-0">
                 <div>
                   <CardTitle className="text-sm font-bold uppercase tracking-wider">
@@ -669,7 +628,7 @@ export default function DashboardPage() {
                     </span>
                   </div>
 
-                  <div className="mt-5 grid grid-cols-2 gap-4">
+                  <div className="mt-5 flex w-full justify-between">
                     <div>
                       <p className="text-[10px] uppercase tracking-wider text-zinc-500">
                         Plan fee
@@ -678,11 +637,14 @@ export default function DashboardPage() {
                         {formatCurrency(data.plan.amount)}
                       </p>
                     </div>
-                    <div>
+
+                    <div className="text-right">
                       <p className="text-[10px] uppercase tracking-wider text-zinc-500">
                         Account size
                       </p>
-                      <p className="mt-1 font-bold">{data.plan.accountSize}</p>
+                      <p className="mt-1 font-bold">
+                        {data.plan.accountSize}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -715,7 +677,7 @@ export default function DashboardPage() {
             </Card>
 
             {/* System Health */}
-            <Card className="border-border/50 shadow-sm">
+            <Card className="w-full border-border/50 shadow-sm lg:w-1/3">
               <CardHeader>
                 <CardTitle className="text-sm font-bold uppercase tracking-wider">
                   System health
@@ -767,10 +729,32 @@ export default function DashboardPage() {
                 </Link>
               </CardContent>
             </Card>
+
+            {/* News */}
+            <Card className="w-full border-border/50 shadow-sm lg:w-1/3">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-lg font-bold">News</CardTitle>
+                <Link href="/user-dashboard/news">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 rounded-full border-blue-200 bg-blue-50 text-xs font-semibold text-blue-600 hover:bg-blue-100 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-400"
+                  >
+                    View All
+                  </Button>
+                </Link>
+              </CardHeader>
+
+              <CardContent className="divide-y divide-border/40">
+                {data.news.map((item) => (
+                  <NewsRow key={item.id} item={item} />
+                ))}
+              </CardContent>
+            </Card>
           </div>
 
-          {/* Recent Trades - Comes last on mobile, takes 2/3 width on desktop */}
-          <Card className="border-border/50 shadow-sm lg:w-2/3">
+          {/* Recent Trades - full width */}
+          <Card className="w-full border-border/50 shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
               <div>
                 <CardTitle className="text-sm font-bold uppercase tracking-wider">
@@ -796,13 +780,13 @@ export default function DashboardPage() {
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[680px] text-sm">
                   <thead>
-                    <tr className="border-y border-border/50 bg-muted/20 text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                      <th className="px-6 py-3">Symbol</th>
-                      <th className="px-6 py-3">Position</th>
-                      <th className="px-6 py-3">Entry</th>
-                      <th className="px-6 py-3">Lot size</th>
-                      <th className="px-6 py-3">Result</th>
-                      <th className="px-6 py-3">Date</th>
+                    <tr className="border-y border-border/50 bg-muted/20 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                      <th className="px-6 py-3 text-left">Symbol</th>
+                      <th className="px-6 py-3 text-center">Position</th>
+                      <th className="px-6 py-3 text-center">Entry</th>
+                      <th className="px-6 py-3 text-center">Lot size</th>
+                      <th className="px-6 py-3 text-center">Result</th>
+                      <th className="px-6 py-3 text-right">Date</th>
                     </tr>
                   </thead>
 
@@ -812,7 +796,7 @@ export default function DashboardPage() {
                         key={trade.id}
                         className="transition-colors hover:bg-muted/30"
                       >
-                        <td className="px-6 py-4">
+                        <td className="px-6 py-4 text-left">
                           <div className="font-bold tracking-tight">
                             {trade.symbol}
                           </div>
@@ -821,9 +805,9 @@ export default function DashboardPage() {
                           </div>
                         </td>
 
-                        <td className="px-6 py-4">
+                        <td className="px-6 py-4 text-center">
                           <span
-                            className={`inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider ${
+                            className={`inline-flex items-center justify-center gap-1.5 text-xs font-bold uppercase tracking-wider ${
                               trade.type === "BUY"
                                 ? "text-emerald-600 dark:text-emerald-400"
                                 : "text-red-600 dark:text-red-400"
@@ -838,15 +822,15 @@ export default function DashboardPage() {
                           </span>
                         </td>
 
-                        <td className="px-6 py-4 font-medium tabular-nums">
+                        <td className="px-6 py-4 text-center font-medium tabular-nums">
                           {trade.entry.toFixed(2)}
                         </td>
 
-                        <td className="px-6 py-4 font-medium tabular-nums">
+                        <td className="px-6 py-4 text-center font-medium tabular-nums">
                           {trade.lotSize.toFixed(2)}
                         </td>
 
-                        <td className="px-6 py-4">
+                        <td className="px-6 py-4 text-center">
                           <div
                             className={`font-bold tabular-nums ${
                               trade.profit >= 0
@@ -859,7 +843,7 @@ export default function DashboardPage() {
                           </div>
                         </td>
 
-                        <td className="px-6 py-4 text-xs text-muted-foreground">
+                        <td className="px-6 py-4 text-right text-xs text-muted-foreground">
                           {formatDate(trade.date)}
                         </td>
                       </tr>
