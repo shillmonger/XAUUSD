@@ -104,16 +104,12 @@ export default function UserSidebar({
   useEffect(() => {
     const fetchUnreadCount = async () => {
       try {
-        const response = await fetch("/api/chat/messages");
-        const data = await response.json();
-        if (data.success && data.messages) {
-          const unread = data.messages.filter(
-            (msg: any) => msg.sender === 'admin' && !msg.read
-          ).length;
-          setUnreadCount(unread);
-        }
+        // TODO: Implement chat messages when API endpoint is available
+        // Currently commented out due to missing /api/chat/messages route
+        setUnreadCount(0);
       } catch (error) {
         console.error("Error fetching unread count:", error);
+        setUnreadCount(0);
       }
     };
     fetchUnreadCount();
