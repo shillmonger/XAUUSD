@@ -58,9 +58,17 @@ export async function GET(request: NextRequest) {
       body: tokenParams,
     });
 
+    // Log response details before parsing
+    const responseText = await tokenResponse.text();
+    console.error('Token exchange response:', {
+      status: tokenResponse.status,
+      statusText: tokenResponse.statusText,
+      contentType: tokenResponse.headers.get('content-type'),
+      body: responseText.substring(0, 500),
+    });
+
     if (!tokenResponse.ok) {
-      const errorText = await tokenResponse.text();
-      console.error('Token exchange failed: Status', tokenResponse.status, 'Body:', errorText);
+      console.error('Token exchange failed: Status', tokenResponse.status, 'Body:', responseText);
       console.error('Request params:', {
         grant_type: 'authorization_code',
         code: code.substring(0, 10) + '...',
@@ -74,7 +82,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const tokenData = await tokenResponse.json();
+    const tokenData = JSON.parse(responseText);
     const accessToken = tokenData.access_token;
 
     // Verify the connected Deriv account using the access token
