@@ -138,10 +138,10 @@ function BottomSheet({
 export default function ConnectDerivPage() {
   const router = useRouter();
   const [derivConnected, setDerivConnected] = useState(false);
-  const [accountId, setAccountId] = useState("CR****1234");
+  const [accountId, setAccountId] = useState<string>("");
   const [accountType, setAccountType] = useState<"DEMO" | "LIVE">("DEMO");
-  const [accountStatus] = useState("Active");
-  const [startingBalance] = useState(10000);
+  const [accountStatus, setAccountStatus] = useState<string>("");
+  const [startingBalance, setStartingBalance] = useState<number>(0);
   const [botStatus, setBotStatus] = useState<"ACTIVE" | "PAUSED" | "OFF">(
     "OFF",
   );
@@ -177,11 +177,17 @@ export default function ConnectDerivPage() {
           setDerivConnected(true);
           setAccountId(data.accountId);
           setAccountType(data.accountType as "DEMO" | "LIVE");
+          setAccountStatus("Active"); // Deriv doesn't provide this in status API
+          setStartingBalance(0); // Would need separate API call for balance
         } else {
           setDerivConnected(false);
+          setAccountId("");
+          setAccountStatus("");
+          setStartingBalance(0);
         }
       } catch (error) {
         console.error('Failed to check connection status:', error);
+        setDerivConnected(false);
       }
     };
 
@@ -192,7 +198,7 @@ export default function ConnectDerivPage() {
     const success = urlParams.get('success');
     const error = urlParams.get('error');
 
-    if (success === 'true') {
+    if (success === 'connected') {
       toast.success(
         <div className="flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4 text-emerald-500" />
@@ -221,6 +227,9 @@ export default function ConnectDerivPage() {
           break;
         case 'invalid_account_data':
           errorMessage = 'Invalid account data received';
+          break;
+        case 'no_active_account':
+          errorMessage = 'No active Deriv account found';
           break;
         case 'account_already_connected':
           errorMessage = 'This Deriv account is already connected to another user';
@@ -480,7 +489,7 @@ export default function ConnectDerivPage() {
                 ACCOUNT ID
               </p>
               <p className="mt-1 font-mono text-sm font-bold tracking-tight text-foreground">
-                {accountId}
+                {accountId || "Not connected"}
               </p>
             </div>
 
@@ -506,7 +515,7 @@ export default function ConnectDerivPage() {
                 ACCOUNT STATUS
               </p>
               <p className="mt-1 text-sm font-bold uppercase text-foreground">
-                {accountStatus}
+                {accountStatus || "Unknown"}
               </p>
             </div>
 

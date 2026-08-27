@@ -3,6 +3,7 @@ import connectDB from '@/lib/db';
 import User from '@/models/User';
 import DerivAccount from '@/models/DerivAccount';
 import OAuthState from '@/models/OAuthState';
+import { encrypt } from '@/lib/encryption';
 
 export async function GET(request: NextRequest) {
   try {
@@ -122,19 +123,50 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    // The accounts endpoint returns an array of accounts
-    if (!accountData.accounts || !Array.isArray(accountData.accounts) || accountData.accounts.length === 0) {
-      console.error('Invalid account data received:', accountData);
+    // The accounts endpoint returns data array with account objects
+    if (!accountData.data || !Array.isArray(accountData.data) || accountData.data.length === 0) {
+      console.error('Invalid account data received - no accounts found');
       await OAuthState.deleteOne({ state });
       return NextResponse.redirect(
         new URL('/UserDashboard/connect-deriv?error=invalid_account_data', process.env.NEXT_PUBLIC_APP_URL!)
       );
     }
 
-    // Use the first account from the list
-    const firstAccount = accountData.accounts[0];
-    const derivAccountId = firstAccount.loginid;
-    const accountType = firstAccount.account_type === 'demo' ? 'demo' : 'real';
+    // Select account: prefer active demo, fallback to active real
+    const accounts = accountData.data;
+    let selectedAccount = accounts.find((acc: any) => 
+      acc.status === 'active' && acc.account_type === 'demo'
+    );
+    
+    if (!selectedAccount) {
+      selectedAccount = accounts.find((acc: any) => acc.status === 'active' && acc.account_type === 'real');
+    }
+    
+    if (!selectedAccount) {
+      console.error('No active accounts found');
+      await OAuthState.deleteOne({ state });
+      return NextResponse.redirect(
+        new URL('/UserDashboard/connect-deriv?error=no_active_account', process.env.NEXT_PUBLIC_APP_URL!)
+      );
+    }
+
+    // Validate required fields
+    if (!selectedAccount.account_id || !selectedAccount.account_type) {
+      console.error('Selected account missing required fields');
+      await OAuthState.deleteOne({ state });
+      return NextResponse.redirect(
+        new URL('/UserDashboard/connect-deriv?error=invalid_account_data', process.env.NEXT_PUBLIC_APP_URL!)
+      );
+    }
+
+    const derivAccountId = selectedAccount.account_id;
+    const accountType = selectedAccount.account_type === 'demo' ? 'demo' : 'real';
+    
+    console.log('Selected Deriv account:', {
+      derivAccountId: derivAccountId.substring(0, 8) + '...',
+      accountType,
+      status: selectedAccount.status
+    });
 
     // Check if this Deriv account is already connected to another user
     const existingConnection = await DerivAccount.findOne({ derivAccountId });
@@ -148,10 +180,13 @@ export async function GET(request: NextRequest) {
     // Calculate token expiration (Deriv tokens typically expire after a certain time)
     const tokenExpiresAt = new Date(Date.now() + (tokenData.expires_in || 3600) * 1000);
 
+    // Encrypt the access token before storage
+    const encryptedAccessToken = encrypt(accessToken);
+
     // Store or update the Deriv account connection
     if (existingConnection) {
       // Update existing connection
-      existingConnection.accessTokenEncrypted = accessToken;
+      existingConnection.accessTokenEncrypted = encryptedAccessToken;
       existingConnection.tokenExpiresAt = tokenExpiresAt;
       existingConnection.connectionStatus = 'connected';
       existingConnection.connectedAt = new Date();
@@ -165,7 +200,7 @@ export async function GET(request: NextRequest) {
         derivAccountId,
         accountType,
         connectionStatus: 'connected',
-        accessTokenEncrypted: accessToken,
+        accessTokenEncrypted: encryptedAccessToken,
         tokenExpiresAt,
         connectedAt: new Date(),
         lastVerifiedAt: new Date(),
@@ -177,7 +212,7 @@ export async function GET(request: NextRequest) {
 
     // Redirect to the connect-deriv page with success
     return NextResponse.redirect(
-      new URL('/UserDashboard/connect-deriv?success=true', process.env.NEXT_PUBLIC_APP_URL!)
+      new URL('/UserDashboard/connect-deriv?success=connected', process.env.NEXT_PUBLIC_APP_URL!)
     );
 
   } catch (error) {

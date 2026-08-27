@@ -44,6 +44,10 @@ export async function GET(request: NextRequest) {
 
     // Check if the token has expired
     if (derivAccount.tokenExpiresAt < new Date()) {
+      // Update connection status to disconnected
+      derivAccount.connectionStatus = 'disconnected';
+      await derivAccount.save();
+      
       return NextResponse.json({
         connected: false,
         error: 'token_expired',
