@@ -152,6 +152,11 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('Deriv callback error:', error);
+    console.error('Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : 'No stack trace',
+      name: error instanceof Error ? error.name : 'Unknown',
+    });
     return NextResponse.redirect(
       new URL('/UserDashboard/connect-deriv?error=server_error', process.env.NEXT_PUBLIC_APP_URL!)
     );
