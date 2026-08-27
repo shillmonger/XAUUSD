@@ -86,10 +86,12 @@ export async function GET(request: NextRequest) {
     const accessToken = tokenData.access_token;
 
     // Verify the connected Deriv account using the access token
-    const accountResponse = await fetch('https://api.deriv.com/v3/account', {
+    const accountResponse = await fetch('https://api.derivws.com/trading/v1/options/accounts', {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
+        'Deriv-App-ID': process.env.DERIV_CLIENT_ID!,
+        'Content-Type': 'application/json',
       },
     });
 
@@ -103,25 +105,36 @@ export async function GET(request: NextRequest) {
     });
 
     if (!accountResponse.ok) {
-      console.error('Account verification failed');
+      console.error('Account verification failed:', accountResponse.status, accountResponseText);
       await OAuthState.deleteOne({ state });
       return NextResponse.redirect(
         new URL('/UserDashboard/connect-deriv?error=account_verification_failed', process.env.NEXT_PUBLIC_APP_URL!)
       );
     }
 
-    const accountData = JSON.parse(accountResponseText);
+    let accountData;
+    try {
+      accountData = JSON.parse(accountResponseText);
+    } catch (error) {
+      throw new Error(
+        `Deriv returned non-JSON for account. Status: ${accountResponse.status}. ` +
+        `Response: ${accountResponseText.slice(0, 300)}`
+      );
+    }
     
-    if (!accountData.account || !accountData.account.loginid) {
-      console.error('Invalid account data received');
+    // The accounts endpoint returns an array of accounts
+    if (!accountData.accounts || !Array.isArray(accountData.accounts) || accountData.accounts.length === 0) {
+      console.error('Invalid account data received:', accountData);
       await OAuthState.deleteOne({ state });
       return NextResponse.redirect(
         new URL('/UserDashboard/connect-deriv?error=invalid_account_data', process.env.NEXT_PUBLIC_APP_URL!)
       );
     }
 
-    const derivAccountId = accountData.account.loginid;
-    const accountType = accountData.account.account_type === 'demo' ? 'demo' : 'real';
+    // Use the first account from the list
+    const firstAccount = accountData.accounts[0];
+    const derivAccountId = firstAccount.loginid;
+    const accountType = firstAccount.account_type === 'demo' ? 'demo' : 'real';
 
     // Check if this Deriv account is already connected to another user
     const existingConnection = await DerivAccount.findOne({ derivAccountId });

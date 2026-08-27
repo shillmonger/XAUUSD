@@ -41,8 +41,7 @@ const OAuthStateSchema: Schema<IOAuthState> = new Schema(
   }
 );
 
-// Index for state lookups and cleanup
-OAuthStateSchema.index({ state: 1 });
+// Index for cleanup of expired states
 OAuthStateSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 const OAuthState: Model<IOAuthState> = mongoose.models.OAuthState || mongoose.model<IOAuthState>('OAuthState', OAuthStateSchema);

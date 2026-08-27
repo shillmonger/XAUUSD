@@ -63,8 +63,6 @@ const DerivAccountSchema: Schema<IDerivAccount> = new Schema(
 
 // Index for user lookups
 DerivAccountSchema.index({ userId: 1 });
-// Index for account ID lookups
-DerivAccountSchema.index({ derivAccountId: 1 });
 
 const DerivAccount: Model<IDerivAccount> = mongoose.models.DerivAccount || mongoose.model<IDerivAccount>('DerivAccount', DerivAccountSchema);
 
