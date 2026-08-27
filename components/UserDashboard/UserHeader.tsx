@@ -72,83 +72,12 @@ export default function UserHeader({
 
     const fetchNotificationCount = async (userId: string) => {
       try {
-        // Fetch deposits
-        const depositsResponse = await fetch(
-          `/api/user-dashboard/deposit?userId=${userId}`,
-        );
-        const depositsResult = await depositsResponse.json();
-
-        // Fetch withdrawals
-        const withdrawalsResponse = await fetch("/api/withdraw");
-        const withdrawalsResult = await withdrawalsResponse.json();
-
-        // Fetch investments
-        const investmentsResponse = await fetch("/api/investments");
-        const investmentsResult = await investmentsResponse.json();
-
-        // Fetch gifts
-        const giftsResponse = await fetch("/api/user-dashboard/gift/history");
-        const giftsResult = await giftsResponse.json();
-
-        // Fetch gift cards
-        let giftCardsResult: any = { success: false, giftCards: [] };
-        try {
-          const giftCardsResponse = await fetch(
-            `/api/user-dashboard/gift-card?userId=${userId}`,
-          );
-          giftCardsResult = await giftCardsResponse.json();
-        } catch (error) {
-          console.error("Error fetching gift cards:", error);
-        }
-
-        let unreadCount = 0;
-
-        // Count unread deposits (pending ones)
-        if (depositsResult.success && depositsResult.deposits) {
-          unreadCount += depositsResult.deposits.filter(
-            (d: any) => d.status !== "approved",
-          ).length;
-        }
-
-        // Count unread withdrawals (pending ones)
-        if (withdrawalsResult.withdrawals) {
-          unreadCount += withdrawalsResult.withdrawals.filter(
-            (w: any) => w.status !== "approved",
-          ).length;
-        }
-
-        // Count ROI notifications (all profit history items are unread initially)
-        if (investmentsResult.investments) {
-          investmentsResult.investments.forEach((investment: any) => {
-            if (
-              investment.profitHistory &&
-              investment.profitHistory.length > 0
-            ) {
-              unreadCount += investment.profitHistory.length;
-            }
-            // Count active investments as unread
-            if (investment.status === "active") {
-              unreadCount += 1;
-            }
-          });
-        }
-
-        // Count unread gifts (all gifts are unread initially)
-        if (giftsResult.success && giftsResult.gifts) {
-          unreadCount += giftsResult.gifts.length;
-        }
-
-        // Count unread gift cards (pending ones)
-        if (giftCardsResult.success && giftCardsResult.giftCards) {
-          const pendingGiftCards = giftCardsResult.giftCards.filter(
-            (gc: any) => gc.status !== "approved",
-          );
-          unreadCount += pendingGiftCards.length;
-        }
-
-        setNotificationCount(unreadCount);
+        // TODO: Implement notification count when API endpoints are available
+        // Currently commented out due to missing API routes
+        setNotificationCount(0);
       } catch (error) {
         console.error("Error fetching notification count:", error);
+        setNotificationCount(0);
       }
     };
 

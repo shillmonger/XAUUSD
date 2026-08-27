@@ -64,7 +64,8 @@ export const config = {
      * - favicon.ico (favicon file)
      * - public files
      * - api/auth routes (public API routes)
+     * - api/deriv routes (OAuth callback routes)
      */
-    '/((?!_next/static|_next/image|favicon.ico|public|api/auth).*)',
+    '/((?!_next/static|_next/image|favicon.ico|public|api/auth|api/deriv).*)',
   ],
 };

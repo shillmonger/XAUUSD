@@ -37,24 +37,37 @@ export async function GET(request: NextRequest) {
     }
 
     // Exchange authorization code for access token
+    const tokenParams = new URLSearchParams({
+      grant_type: 'authorization_code',
+      code: code,
+      redirect_uri: process.env.DERIV_REDIRECT_URI!,
+      client_id: process.env.DERIV_CLIENT_ID!,
+      code_verifier: oauthState.codeVerifier,
+    });
+
+    // Only include client_secret if it's set and not a placeholder
+    if (process.env.DERIV_CLIENT_SECRET && process.env.DERIV_CLIENT_SECRET !== 'deriv_app_secret') {
+      tokenParams.append('client_secret', process.env.DERIV_CLIENT_SECRET);
+    }
+
     const tokenResponse = await fetch('https://auth.deriv.com/oauth2/token', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
-      body: new URLSearchParams({
-        grant_type: 'authorization_code',
-        code: code,
-        redirect_uri: process.env.DERIV_REDIRECT_URI!,
-        client_id: process.env.DERIV_CLIENT_ID!,
-        client_secret: process.env.DERIV_CLIENT_SECRET!,
-        code_verifier: oauthState.codeVerifier,
-      }),
+      body: tokenParams,
     });
 
     if (!tokenResponse.ok) {
       const errorText = await tokenResponse.text();
-      console.error('Token exchange failed:', errorText);
+      console.error('Token exchange failed: Status', tokenResponse.status, 'Body:', errorText);
+      console.error('Request params:', {
+        grant_type: 'authorization_code',
+        code: code.substring(0, 10) + '...',
+        redirect_uri: process.env.DERIV_REDIRECT_URI,
+        client_id: process.env.DERIV_CLIENT_ID,
+        code_verifier: oauthState.codeVerifier.substring(0, 10) + '...',
+      });
       await OAuthState.deleteOne({ state });
       return NextResponse.redirect(
         new URL('/UserDashboard/connect-deriv?error=token_exchange_failed', process.env.NEXT_PUBLIC_APP_URL!)

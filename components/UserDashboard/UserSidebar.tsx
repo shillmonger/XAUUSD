@@ -89,7 +89,7 @@ export default function UserSidebar({
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        const response = await fetch("/api/user-dashboard/profile");
+        const response = await fetch("/api/user/info");
         const data = await response.json();
         if (data.success && data.user.role) {
           setUserRole(data.user.role);
