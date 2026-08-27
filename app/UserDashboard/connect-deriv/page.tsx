@@ -227,7 +227,7 @@ export default function ConnectDerivPage() {
   };
 
   return (
-    <main className="flex items-center justify-center bg-background py-10 text-foreground">
+    <main className="flex items-center justify-center bg-background py-5 lg:py-10 text-foreground">
       <div className="w-full space-y-5">
         {!derivConnected && (
           <section className="flex justify-center">
@@ -252,7 +252,7 @@ export default function ConnectDerivPage() {
                   </AnimatePresence>
 
                   {/* Overlays & Badges */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-card via-transparent to-black/20 z-[1]" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-card via-transparent to-black/20 dark:from-card dark:via-transparent dark:to-black/20 z-[1]" />
   
                   {/* Close Button */}
                   <button
@@ -343,323 +343,353 @@ export default function ConnectDerivPage() {
           </section>
         )}
 
-        {derivConnected && (
-          <>
-            <section>
-              <Card className="relative overflow-hidden rounded-3xl bg-zinc-950 text-white shadow-2xl dark:bg-white dark:text-zinc-950 border border-border/50">
-                <div className="absolute -right-24 -top-24 h-64 w-64 rounded-full bg-[#D4AF37]/20 blur-3xl" />
-                <div className="absolute -bottom-32 left-1/3 h-72 w-72 rounded-full bg-[#D4AF37]/10 blur-3xl" />
 
-                <div className="relative p-5 sm:p-7 lg:p-8">
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#D4AF37] text-black shadow-lg">
-                        <ShieldCheck className="h-6 w-6" />
-                      </div>
 
-                      <div>
-                        <h3 className="text-lg font-black tracking-tight">
-                          Account Overview
-                        </h3>
-                        <p className="text-xs text-zinc-400 dark:text-zinc-500">
-                          Your connected Deriv account details
-                        </p>
-                      </div>
-                    </div>
 
-                    <div className="flex items-center gap-3">
-                      <StatusBadge status="CONNECTED" />
+        
 
-                      <Button
-                        onClick={handleDisconnectDeriv}
-                        variant="destructive"
-                        size="sm"
-                        className="w-full rounded-full text-sm cursor-pointer px-4 py-4 sm:w-auto"
-                      >
-                        <Unplug className="mr-2 h-4 w-4" />
-                        Disconnect
-                      </Button>
-                    </div>
-                  </div>
+   {derivConnected && (
+  <div className="relative space-y-5 text-foreground font-sans">
+    {/* subtle trading grid backdrop */}
+    <div
+      className="pointer-events-none absolute inset-0 -z-10 opacity-[0.035] dark:opacity-[0.06]"
+      style={{
+        backgroundImage: `
+          linear-gradient(to right, currentColor 1px, transparent 1px),
+          linear-gradient(to bottom, currentColor 1px, transparent 1px)
+        `,
+        backgroundSize: "24px 24px",
+      }}
+    />
 
-                  <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-                    <div className="rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 p-4">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
-                        Account ID
-                      </p>
-                      <p className="mt-2 text-sm font-bold">{accountId}</p>
-                    </div>
+    {/* MAIN CONTENT GRID */}
+    <div className="grid gap-6 lg:grid-cols-3">
+      {/* LEFT COLUMN */}
+      <div className="lg:col-span-2 space-y-6">
+        {/* DERIV ACCOUNT OVERVIEW */}
+        <Card className="relative overflow-hidden rounded-2xl border-border bg-card p-6 text-foreground shadow-xl">
+          {/* top accent line */}
+          <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent opacity-70" />
 
-                    <div className="rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 p-4">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
-                        Account Type
-                      </p>
-                      <div className="mt-2">
-                        <StatusBadge status={accountType} />
-                      </div>
-                    </div>
-
-                    <div className="rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 p-4">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
-                        Account Status
-                      </p>
-                      <p className="mt-2 text-sm font-bold">
-                        {accountStatus}
-                      </p>
-                    </div>
-
-                    <div className="rounded-2xl bg-[#D4AF37]/10 backdrop-blur-sm border border-[#D4AF37]/30 p-4">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-[#D4AF37]">
-                        Starting Balance
-                      </p>
-                      <p className="mt-2 text-lg font-black tracking-tight text-[#D4AF37]">
-                        $
-                        {startingBalance.toLocaleString("en-US", {
-                          minimumFractionDigits: 2,
-                        })}
-                      </p>
-                    </div>
-                  </div>
+          <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-5">
+            <div className="flex items-center gap-3">
+              <div className="hidden h-10 w-10 items-center justify-center rounded-xl border border-border bg-muted text-[#D4AF37] md:flex">
+                <ShieldCheck className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-black uppercase tracking-wide text-foreground">
+                    DERIV CONFIGURATION
+                  </h3>
+                  <span className="hidden sm:inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+                    LIVE LINK
+                  </span>
                 </div>
-              </Card>
-            </section>
+                <p className="text-xs text-muted-foreground">
+                  Active connection details and account state
+                </p>
+              </div>
+            </div>
 
-            <section className="grid gap-6 lg:grid-cols-2">
-              <Card className="overflow-hidden border-border/50 shadow-md">
-                <CardHeader className="border-b border-border/40 bg-muted/20 pb-5">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-zinc-950 text-[#D4AF37] dark:bg-zinc-100">
-                        <Zap className="h-5 w-5" />
-                      </div>
+            <div className="flex items-center gap-3">
+              <StatusBadge status="CONNECTED" />
+              <Button
+                onClick={handleDisconnectDeriv}
+                variant="destructive"
+                size="sm"
+                className="cursor-pointer rounded-full px-4 py-4 text-xs font-bold uppercase tracking-wider"
+              >
+                <Unplug className="mr-1 h-4 w-4" />
+                Disconnect
+              </Button>
+            </div>
+          </div>
 
-                      <div className="min-w-0">
-                        <CardTitle className="text-base font-bold">
-                          Copy Trading Bot
-                        </CardTitle>
-                        <CardDescription className="text-xs">
-                          Control automated copy trading
-                        </CardDescription>
-                      </div>
-                    </div>
+          {/* METRICS — trading ticker style */}
+          <div className="relative mt-2 grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <div className="rounded-xl border border-border bg-muted/60 p-3.5 transition-colors hover:border-[#D4AF37]/30">
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                ACCOUNT ID
+              </p>
+              <p className="mt-1 font-mono text-sm font-bold tracking-tight text-foreground">
+                {accountId}
+              </p>
+            </div>
 
-                    <StatusBadge status={botStatus} />
-                  </div>
-                </CardHeader>
+            <div className="rounded-xl border border-border bg-muted/60 p-3.5 transition-colors hover:border-[#D4AF37]/30">
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                ACCOUNT TYPE
+              </p>
+              <div className="mt-1">
+                <span
+                  className={`inline-block rounded px-2 py-0.5 text-xs font-black uppercase tracking-wider ${
+                    accountType === "DEMO"
+                      ? "border border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                      : "border border-[#D4AF37]/20 bg-[#D4AF37]/10 text-[#D4AF37]"
+                  }`}
+                >
+                  {accountType}
+                </span>
+              </div>
+            </div>
 
-                <CardContent className="space-y-5 pt-6">
-                  <div className="flex flex-col gap-4 rounded-xl bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                        Current Mode
-                      </p>
+            <div className="rounded-xl border border-border bg-muted/60 p-3.5 transition-colors hover:border-[#D4AF37]/30">
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                ACCOUNT STATUS
+              </p>
+              <p className="mt-1 text-sm font-bold uppercase text-foreground">
+                {accountStatus}
+              </p>
+            </div>
 
-                      <p className="mt-1 text-sm font-semibold">
-                        {accountType === "DEMO"
-                          ? "Demo Copy Trading"
-                          : "Live Copy Trading"}
-                      </p>
-                    </div>
+            <div className="rounded-xl border border-[#D4AF37]/25 bg-[#D4AF37]/5 p-3.5 shadow-[0_0_20px_-8px_rgba(212,175,55,0.35)]">
+              <p className="text-[10px] font-black uppercase tracking-widest text-[#D4AF37]">
+                STARTING BALANCE
+              </p>
+              <p className="mt-1 font-mono text-base font-black tracking-tight text-[#D4AF37]">
+                $
+                {startingBalance.toLocaleString("en-US", {
+                  minimumFractionDigits: 2,
+                })}
+              </p>
+            </div>
+          </div>
+        </Card>
 
-                    <Button
-                      onClick={handleToggleBot}
-                      disabled={accountType === "LIVE" && !subscriptionStatus}
-                      size="lg"
-                      className={`w-full min-w-0 cursor-pointer rounded-full p-4 px-3 text-sm font-semibold shadow-sm sm:w-auto sm:min-w-[100px] ${
-                        botStatus === "ACTIVE"
-                          ? "bg-amber-500 text-white hover:bg-amber-600"
-                          : botStatus === "PAUSED"
-                            ? "bg-emerald-500 text-white hover:bg-emerald-600"
-                            : "bg-[#D4AF37] text-black hover:bg-[#c9a227]"
-                      }`}
-                    >
-                      {botStatus === "ACTIVE" ? (
-                        <>
-                          <Pause className="mr-2 h-4 w-4 shrink-0" />
-                          Pause Bot
-                        </>
-                      ) : botStatus === "PAUSED" ? (
-                        <>
-                          <Play className="mr-2 h-4 w-4 shrink-0" />
-                          Resume Bot
-                        </>
-                      ) : (
-                        <>
-                          <Power className="mr-2 h-4 w-4 shrink-0" />
-                          Start Bot
-                        </>
-                      )}
-                    </Button>
-                  </div>
+        {/* BOT CONTROLS */}
+        <Card className="relative overflow-hidden rounded-2xl border-border bg-card p-6 text-foreground shadow-xl space-y-2">
+          {/* FULL-WIDTH BANNER */}
+          <div className="absolute inset-x-0 top-0 h-24 sm:h-28 w-full overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-card/60 to-card" />
+          </div>
+          <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-emerald-500/60 to-transparent opacity-60" />
 
-                  <div className="flex items-start gap-3 rounded-xl border border-border/40 bg-muted/40 p-4">
-                    {accountType === "LIVE" && !subscriptionStatus ? (
-                      <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
-                    ) : botStatus === "ACTIVE" ? (
-                      <Activity className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />
-                    ) : botStatus === "PAUSED" ? (
-                      <Pause className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
-                    ) : (
-                      <Power className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
-                    )}
+          <div className="relative flex items-center justify-between border-b border-border pb-4">
+            <div className="flex items-center gap-3">
+              <div className="hidden h-10 w-10 items-center justify-center rounded-xl border border-border bg-muted text-[#D4AF37] md:flex">
+                <Zap className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-black uppercase tracking-wide">
+                  BOT CONTROLS
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Manage execution states and trading environment
+                </p>
+              </div>
+            </div>
+            <StatusBadge status={botStatus} />
+          </div>
 
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium">
-                        {accountType === "LIVE" && !subscriptionStatus
-                          ? "Live trading requires an active subscription"
-                          : botStatus === "ACTIVE"
-                            ? "Bot is actively copying signals"
-                            : botStatus === "PAUSED"
-                              ? "Bot is paused — no new trades will open"
-                              : "Bot is off — start to begin copy trading"}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+          {/* EXECUTION STATE — command bar feel */}
+          <div className="relative flex flex-col gap-4 rounded-xl border border-border bg-muted/50 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <div
+                className={`mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full ${
+                  botStatus === "ACTIVE"
+                    ? "bg-emerald-500 shadow-[0_0_10px_2px_rgba(16,185,129,0.5)] animate-pulse"
+                    : botStatus === "PAUSED"
+                    ? "bg-amber-500 shadow-[0_0_8px_1px_rgba(245,158,11,0.4)]"
+                    : "bg-red-500/80"
+                }`}
+              />
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                  BOT EXECUTION STATE
+                </p>
+                <p className="mt-0.5 text-xs text-foreground">
+                  {botStatus === "ACTIVE"
+                    ? "Bot is active and copying signals live."
+                    : botStatus === "PAUSED"
+                    ? "Execution paused — no new positions will open."
+                    : "Bot is offline."}
+                </p>
+              </div>
+            </div>
 
-              <Card className="overflow-hidden border-border/50 shadow-md">
-                {accountType === "DEMO" ? (
-                  <>
-                    <CardHeader className="border-b border-border/40 bg-muted/20 pb-5">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-zinc-950 text-[#D4AF37] dark:bg-zinc-100">
-                          <Rocket className="h-5 w-5" />
-                        </div>
+            <Button
+              onClick={handleToggleBot}
+              disabled={accountType === "LIVE" && !subscriptionStatus}
+              size="lg"
+              className={`w-full cursor-pointer rounded-full px-4 py-2 text-xs font-black uppercase tracking-wider transition-all sm:w-auto ${
+                botStatus === "ACTIVE"
+                  ? "bg-amber-500 text-black hover:bg-amber-400 shadow-lg shadow-amber-500/25"
+                  : botStatus === "PAUSED"
+                  ? "bg-emerald-500 text-black hover:bg-emerald-400 shadow-lg shadow-emerald-500/25"
+                  : "bg-indigo-600 text-white hover:bg-indigo-500 shadow-lg shadow-indigo-600/30"
+              }`}
+            >
+              {botStatus === "ACTIVE" ? (
+                <>
+                  <Pause className="h-4 w-4" /> Pause Bot
+                </>
+              ) : botStatus === "PAUSED" ? (
+                <>
+                  <Play className="h-4 w-4" /> Resume Bot
+                </>
+              ) : (
+                <>
+                  <Power className="h-4 w-4" /> Start Bot
+                </>
+              )}
+            </Button>
+          </div>
 
-                        <div>
-                          <CardTitle className="text-base font-bold">
-                            Demo Trading
-                          </CardTitle>
-                          <CardDescription className="text-xs">
-                            Test copy trading risk-free
-                          </CardDescription>
-                        </div>
-                      </div>
-                    </CardHeader>
+          {/* MODE + PLANS */}
+          <div className="relative grid gap-4 sm:grid-cols-2">
+            <div className="space-y-3 rounded-xl border border-border bg-muted/40 p-4">
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                ENVIRONMENT SWITCH
+              </p>
+              <div className="grid grid-cols-2 gap-2 rounded-lg border border-border bg-card p-1.5">
+                <button
+                  type="button"
+                  onClick={() => handleSwitchAccountType("DEMO")}
+                  className={`rounded-md py-2 text-xs font-black uppercase tracking-wider transition-all ${
+                    accountType === "DEMO"
+                      ? "bg-emerald-500 text-black shadow shadow-emerald-500/30"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Demo Mode
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSwitchAccountType("LIVE")}
+                  className={`rounded-md py-2 text-xs font-black uppercase tracking-wider transition-all ${
+                    accountType === "LIVE"
+                      ? "bg-[#D4AF37] text-black shadow shadow-[#D4AF37]/30"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Live Mode
+                </button>
+              </div>
+            </div>
 
-                    <CardContent className="space-y-5 pt-6">
-                      <div className="flex items-start gap-3 rounded-xl border border-[#D4AF37]/20 bg-[#D4AF37]/5 p-4">
-                        <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[#D4AF37]" />
+            <div className="flex flex-col justify-between space-y-3 rounded-xl border border-border bg-muted/40 p-4">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                  SUBSCRIPTION & PLANS
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {subscriptionStatus
+                    ? "Active subscription tier active"
+                    : "Subscription required for live execution"}
+                </p>
+              </div>
+              <Button
+                size="sm"
+                className="w-full rounded-lg bg-[#D4AF37] py-2.5 text-xs font-black uppercase tracking-wider text-black hover:bg-[#c9a227] shadow-md shadow-[#D4AF37]/20"
+              >
+                <Crown className="mr-1.5 h-4 w-4" /> View Bot Plans
+              </Button>
+            </div>
+          </div>
+        </Card>
+      </div>
 
-                        <div>
-                          <p className="text-sm font-medium">
-                            Demo Mode Active
-                          </p>
+      {/* RIGHT COLUMN */}
+      <div className="space-y-6">
+        {/* LIVE TERMINAL */}
+        <Card className="relative overflow-hidden rounded-2xl border-border bg-card p-5 text-foreground shadow-xl">
+          <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-[#D4AF37]/80 via-emerald-500/50 to-transparent" />
 
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            Practice without real funds. Test performance before going live.
-                          </p>
-                        </div>
-                      </div>
+          <div className="flex items-center justify-between border-b border-border pb-3">
+            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+              LIVE PREVIEW TERMINAL
+            </p>
+            <span className="flex items-center gap-1.5 font-mono text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+              STREAM
+            </span>
+          </div>
 
-                      <div className="grid grid-cols-1 gap-3 px-0 sm:grid-cols-2">
-                        <Button
-                          onClick={handleStartDemoTrading}
-                          disabled={botStatus === "ACTIVE"}
-                          size="lg"
-                          className="h-12 w-full cursor-pointer rounded-full bg-[#D4AF37] px-5 text-sm font-semibold text-black hover:bg-[#c9a227] disabled:cursor-not-allowed"
-                        >
-                          <span className="whitespace-nowrap">
-                            Start Demo Trading
-                          </span>
-                        </Button>
+          <div className="mt-4 space-y-0 font-mono text-xs">
+            {[
+              {
+                label: "ACCOUNT_ID",
+                value: accountId || "[Waiting for input]",
+                className: "text-foreground font-bold",
+              },
+              {
+                label: "ACCT_TYPE",
+                value: accountType,
+                className:
+                  accountType === "DEMO"
+                    ? "text-emerald-600 dark:text-emerald-400 font-bold"
+                    : "text-[#D4AF37] font-bold",
+              },
+              {
+                label: "BOT_STATUS",
+                value: botStatus,
+                className: "text-foreground font-bold",
+              },
+              {
+                label: "SUBSCRIPTION",
+                value: subscriptionStatus ? "ACTIVE" : "INACTIVE",
+                className: subscriptionStatus
+                  ? "text-emerald-600 dark:text-emerald-400 font-bold"
+                  : "text-amber-600 dark:text-amber-500 font-bold",
+              },
+              {
+                label: "STARTING_BAL",
+                value: `$${startingBalance}`,
+                className: "text-foreground font-bold",
+              },
+            ].map((row, i) => (
+              <div
+                key={row.label}
+                className={`flex items-center justify-between py-2 ${
+                  i < 4 ? "border-b border-border/80" : ""
+                }`}
+              >
+                <span className="text-muted-foreground">{row.label}</span>
+                <span className={row.className}>{row.value}</span>
+              </div>
+            ))}
+          </div>
 
-                        <Button
-                          onClick={() => handleSwitchAccountType("LIVE")}
-                          variant="outline"
-                          size="lg"
-                          className="h-12 w-full cursor-pointer rounded-full px-5 text-sm font-semibold"
-                        >
-                          <span className="whitespace-nowrap">
-                            Switch to Live Trading
-                          </span>
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </>
-                ) : (
-                  <>
-                    <CardHeader className="border-b border-border/40 bg-muted/20 pb-5">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-zinc-950 text-[#D4AF37] dark:bg-zinc-100">
-                          <Crown className="h-5 w-5" />
-                        </div>
+          {/* faux terminal footer */}
+          <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/40 px-3 py-2 font-mono text-[10px] text-muted-foreground">
+            <span className="text-emerald-500">▸</span>
+            <span>socket://deriv · encrypted · ready</span>
+            <span className="ml-auto animate-pulse">_</span>
+          </div>
+        </Card>
 
-                        <div>
-                          <CardTitle className="text-base font-bold">
-                            Live Trading
-                          </CardTitle>
-                          <CardDescription className="text-xs">
-                            Real copy trading with your live account
-                          </CardDescription>
-                        </div>
-                      </div>
-                    </CardHeader>
-
-                    <CardContent className="space-y-5 pt-6">
-                      {!subscriptionStatus ? (
-                        <>
-                          <div className="flex items-start gap-3 rounded-xl border border-amber-200/60 bg-amber-50 p-4 dark:border-amber-900/40 dark:bg-amber-950/30">
-                            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
-
-                            <div>
-                              <p className="text-sm font-bold">
-                                Subscription Required
-                              </p>
-
-                              <p className="mt-1 text-xs text-muted-foreground">
-                                Subscribe to enable live copy trading with your connected Deriv account.
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-1 gap-3 px-0 sm:grid-cols-2">
-                            <Button
-                              size="lg"
-                              className="h-12 w-full cursor-pointer rounded-full bg-[#D4AF37] px-5 text-sm font-semibold text-black hover:bg-[#c9a227]"
-                            >
-                              <span className="whitespace-nowrap">
-                                View Bot Plans
-                              </span>
-                            </Button>
-
-                            <Button
-                              onClick={() =>
-                                handleSwitchAccountType("DEMO")
-                              }
-                              variant="outline"
-                              size="lg"
-                              className="h-12 w-full cursor-pointer rounded-full px-5 text-sm font-semibold"
-                            >
-                              <span className="whitespace-nowrap">
-                                Switch to Demo Account
-                              </span>
-                            </Button>
-                          </div>
-                        </>
-                      ) : (
-                        <div className="flex items-start gap-3 rounded-xl border border-emerald-200/60 bg-emerald-50 p-4 dark:border-emerald-900/40 dark:bg-emerald-950/30">
-                          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
-
-                          <div>
-                            <p className="text-sm font-bold">
-                              Live Copy Trading Ready
-                            </p>
-
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              Your subscription is active. You can start live copy trading now.
-                            </p>
-                          </div>
-                        </div>
-                      )}
-                    </CardContent>
-                  </>
-                )}
-              </Card>
-            </section>
-          </>
-        )}
+        {/* SECURITY */}
+        <Card className="relative overflow-hidden rounded-2xl border-border bg-zinc-900 dark:bg-white p-5 text-white dark:text-zinc-900 shadow-xl space-y-3">
+          <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-zinc-400/40 to-transparent dark:via-zinc-500/30" />
+          <div className="flex items-center gap-2">
+            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-300 dark:text-zinc-600">
+              SECURITY STANDARD
+            </p>
+            <span className="rounded border border-emerald-500/20 bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-emerald-400 dark:text-emerald-600">
+              SECURE
+            </span>
+          </div>
+          <p className="text-xs leading-relaxed text-zinc-300 dark:text-zinc-700">
+            End-to-end socket encrypts parameters cleanly into isolated worker
+            tasks. Your primary execution key balances remain secured inside
+            isolated broker spaces.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {["TLS 1.3", "Isolated workers", "No key storage"].map((tag) => (
+              <span
+                key={tag}
+                className="rounded-md border border-zinc-700/50 dark:border-zinc-300/50 bg-zinc-800/50 dark:bg-zinc-100/50 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-300 dark:text-zinc-700"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+        </Card>
+      </div>
+    </div>
+  </div>
+)}
       </div>
 
     </main>

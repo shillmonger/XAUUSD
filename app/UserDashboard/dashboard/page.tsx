@@ -3,13 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  Activity,
   ArrowDownRight,
   ArrowRight,
   ArrowUpRight,
-  Bell,
-  Brain,
   BarChart3,
+  Brain,
   ChevronRight,
   Unplug,
   Eye,
@@ -17,13 +15,11 @@ import {
   History,
   Link2,
   Loader2,
-  Plug,
   RefreshCw,
   Rocket,
   ShieldCheck,
   TrendingUp,
   XCircle,
-  Zap,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -54,6 +50,14 @@ interface NewsItem {
   url?: string;
 }
 
+interface CalendarItem {
+  id: string;
+  country: string;
+  title: string;
+  time: string;
+  impact: string;
+}
+
 interface DashboardData {
   totalSpent: number;
   totalProfit: number;
@@ -69,13 +73,10 @@ interface DashboardData {
   rejectedPlans: number;
   recentTrades: TradeRow[];
   news: NewsItem[];
+  tradingCalendar: CalendarItem[];
   accountStatus: "VERIFIED" | "UNVERIFIED";
   joined: string;
   role: string;
-  mt5Connection: "CONNECTED" | "DISCONNECTED";
-  telegramConn: "CONNECTED" | "DISCONNECTED";
-  database: "ONLINE" | "OFFLINE";
-  tradingBot: "IDLE" | "RUNNING" | "STOPPED";
   plan: {
     name: string;
     amount: number;
@@ -207,6 +208,25 @@ function NewsRow({ item }: { item: NewsItem }) {
     <Link href={item.url} target="_blank" rel="noopener noreferrer">
       {content}
     </Link>
+  );
+}
+
+function CalendarRow({ item }: { item: any }) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-2xl border border-border/60 px-4 py-3">
+      <div className="flex items-center gap-3">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700 dark:bg-blue-950/50 dark:text-blue-400">
+          {item.country}
+        </span>
+        <div>
+          <p className="text-sm font-bold leading-tight">{item.title}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">{item.time}</p>
+        </div>
+      </div>
+      <span className="shrink-0 text-xs text-muted-foreground">
+        {item.impact}
+      </span>
+    </div>
   );
 }
 
@@ -410,13 +430,46 @@ export default function DashboardPage() {
               image: MOCK_NEWS_IMAGE,
             },
           ],
+          tradingCalendar: [
+            {
+              id: "CAL-001",
+              country: "US",
+              title: "Non-Farm Payrolls",
+              time: "08:30 AM",
+              impact: "High",
+            },
+            {
+              id: "CAL-002",
+              country: "EU",
+              title: "ECB Interest Rate Decision",
+              time: "12:45 PM",
+              impact: "High",
+            },
+            {
+              id: "CAL-003",
+              country: "UK",
+              title: "GDP Growth Rate",
+              time: "09:00 AM",
+              impact: "Medium",
+            },
+            {
+              id: "CAL-004",
+              country: "JP",
+              title: "BOJ Monetary Policy",
+              time: "03:00 AM",
+              impact: "High",
+            },
+            {
+              id: "CAL-005",
+              country: "JP",
+              title: "BOJ Monetary Policy",
+              time: "03:00 AM",
+              impact: "High",
+            },
+          ],
           accountStatus: "VERIFIED",
           joined: "JUL 2026",
           role: "ADMIN",
-          mt5Connection: "DISCONNECTED",
-          telegramConn: "CONNECTED",
-          database: "ONLINE",
-          tradingBot: "IDLE",
           plan: {
             name: "STANDARD PLAN",
             amount: 20,
@@ -498,8 +551,8 @@ export default function DashboardPage() {
                     onClick={() => setActiveTab(tab)}
                     className={`relative whitespace-nowrap px-2 pb-3 text-xs font-bold uppercase tracking-widest transition ${
                       activeTab === tab
-                        ? "text-white dark:text-zinc-950"
-                        : "text-zinc-500 hover:text-zinc-200 dark:text-zinc-500 dark:hover:text-zinc-900"
+                        ? "text-white"
+                        : "text-zinc-500 hover:text-zinc-200"
                     }`}
                   >
                     {tab}
@@ -512,7 +565,7 @@ export default function DashboardPage() {
 
               <button
                 onClick={() => setHideBalance((previous) => !previous)}
-                className="rounded-full p-2 text-zinc-400 transition hover:bg-white/10 hover:text-white dark:hover:bg-black/10 dark:hover:text-zinc-950"
+                className="rounded-full p-2 text-zinc-400 transition hover:bg-white/10 hover:text-white"
                 aria-label={hideBalance ? "Show account amounts" : "Hide account amounts"}
               >
                 {hideBalance ? (
@@ -544,6 +597,7 @@ export default function DashboardPage() {
                 </div>
               </div>
 
+              {/* stats */}
               <div className="grid grid-cols-4 gap-2 sm:gap-2">
                 <Link
                   href="/user-dashboard/plans"
@@ -561,7 +615,7 @@ export default function DashboardPage() {
                   href="/user-dashboard/connect"
                   className="group flex flex-col items-center gap-2"
                 >
-                  <span className="flex h-12 w-12 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-300 transition group-hover:border-[#D4AF37] group-hover:text-[#D4AF37] dark:border-zinc-300 dark:bg-zinc-100 dark:text-zinc-700">
+                  <span className="flex h-12 w-12 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-900 transition group-hover:border-[#D4AF37] group-hover:text-[#D4AF37]">
                     <Unplug className="h-5 w-5" />
                   </span>
                   <span className="text-center text-[9px] font-bold uppercase tracking-wider text-zinc-300">
@@ -573,7 +627,7 @@ export default function DashboardPage() {
                   href="/user-dashboard/predict"
                   className="group flex flex-col items-center gap-2"
                 >
-                  <span className="flex h-12 w-12 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-300 transition group-hover:border-[#D4AF37] group-hover:text-[#D4AF37] dark:border-zinc-300 dark:bg-zinc-100 dark:text-zinc-700">
+                  <span className="flex h-12 w-12 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-900 transition group-hover:border-[#D4AF37] group-hover:text-[#D4AF37]">
                     <BarChart3 className="h-5 w-5" />
                   </span>
                   <span className="text-center text-[9px] font-bold uppercase tracking-wider text-zinc-300">
@@ -585,7 +639,7 @@ export default function DashboardPage() {
                   href="/user-dashboard/predict"
                   className="group flex flex-col items-center gap-2"
                 >
-                  <span className="flex h-12 w-12 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-300 transition group-hover:border-[#D4AF37] group-hover:text-[#D4AF37] dark:border-zinc-300 dark:bg-zinc-100 dark:text-zinc-700">
+                  <span className="flex h-12 w-12 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-900 transition group-hover:border-[#D4AF37] group-hover:text-[#D4AF37]">
                     <Brain className="h-5 w-5" />
                   </span>
                   <span className="text-center text-[9px] font-bold uppercase tracking-wider text-zinc-300">
@@ -597,7 +651,7 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        {/* Sidebar cards: Active plan, System health, News */}
+        {/* Sidebar cards: Active plan, Trading Calendar, News */}
         <section className="flex flex-col gap-6">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
             {/* Plan Overview */}
@@ -676,57 +730,25 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
 
-            {/* System Health */}
+            {/* Trading Calendar */}
             <Card className="w-full border-border/50 shadow-sm lg:w-1/3">
-              <CardHeader>
-                <CardTitle className="text-sm font-bold uppercase tracking-wider">
-                  System health
-                </CardTitle>
-                <CardDescription className="mt-1 text-xs">
-                  Connection status across your workspace.
-                </CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-lg font-bold">Trading Calendar</CardTitle>
+                <Link href="/user-dashboard/calendar">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 rounded-full border-blue-200 bg-blue-50 text-xs font-semibold text-blue-600 hover:bg-blue-100 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-400"
+                  >
+                    View All
+                  </Button>
+                </Link>
               </CardHeader>
 
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="inline-flex items-center gap-2 text-xs font-semibold">
-                    <Plug className="h-4 w-4 text-muted-foreground" />
-                    MT5 connection
-                  </span>
-                  <StatusBadge status={data.mt5Connection} />
-                </div>
-
-                <div className="flex items-center justify-between gap-3">
-                  <span className="inline-flex items-center gap-2 text-xs font-semibold">
-                    <Bell className="h-4 w-4 text-muted-foreground" />
-                    Telegram alerts
-                  </span>
-                  <StatusBadge status={data.telegramConn} />
-                </div>
-
-                <div className="flex items-center justify-between gap-3">
-                  <span className="inline-flex items-center gap-2 text-xs font-semibold">
-                    <ShieldCheck className="h-4 w-4 text-muted-foreground" />
-                    Database
-                  </span>
-                  <StatusBadge status={data.database} />
-                </div>
-
-                <div className="flex items-center justify-between gap-3">
-                  <span className="inline-flex items-center gap-2 text-xs font-semibold">
-                    <Activity className="h-4 w-4 text-muted-foreground" />
-                    Trading bot
-                  </span>
-                  <StatusBadge status={data.tradingBot} />
-                </div>
-
-                <Link
-                  href="/user-dashboard/connect"
-                  className="flex items-center justify-between rounded-lg bg-muted/40 px-3 py-2.5 text-xs font-bold uppercase tracking-wider transition hover:bg-muted"
-                >
-                  Review connections
-                  <ArrowRight className="h-4 w-4 text-[#B28D16]" />
-                </Link>
+              <CardContent className="space-y-3">
+                {data.tradingCalendar.map((item) => (
+                  <CalendarRow key={item.id} item={item} />
+                ))}
               </CardContent>
             </Card>
 

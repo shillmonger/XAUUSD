@@ -175,11 +175,11 @@ export default function UserHeader({
         </div>
       </div>
 
-      <div className="flex items-center gap-2 sm:gap-4">
+      <div className="flex items-center gap-2 sm:gap-2">
         {/* Theme toggle */}
         <button
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-          className="p-2 rounded-lg cursor-pointer bg-secondary transition-colors"
+          className="p-2 rounded-full cursor-pointer bg-secondary transition-colors"
           title="Toggle theme"
         >
           {mounted &&
@@ -193,7 +193,7 @@ export default function UserHeader({
         {/* Notification Bell */}
         <Link
           href="/UserDashboard/notifications"
-          className="p-2 bg-secondary rounded-lg relative cursor-pointer"
+          className="p-2 bg-secondary rounded-full relative cursor-pointer"
         >
           <Bell className="h-5 w-5" />
 
