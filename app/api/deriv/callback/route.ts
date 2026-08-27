@@ -93,6 +93,15 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    // Log account verification response
+    const accountResponseText = await accountResponse.text();
+    console.error('Account verification response:', {
+      status: accountResponse.status,
+      statusText: accountResponse.statusText,
+      contentType: accountResponse.headers.get('content-type'),
+      body: accountResponseText.substring(0, 500),
+    });
+
     if (!accountResponse.ok) {
       console.error('Account verification failed');
       await OAuthState.deleteOne({ state });
@@ -101,7 +110,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const accountData = await accountResponse.json();
+    const accountData = JSON.parse(accountResponseText);
     
     if (!accountData.account || !accountData.account.loginid) {
       console.error('Invalid account data received');
