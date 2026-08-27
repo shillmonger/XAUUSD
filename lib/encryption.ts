@@ -1,6 +1,5 @@
 import crypto from 'crypto';
 
-const ENCRYPTION_KEY = process.env.DERIV_TOKEN_ENCRYPTION_KEY;
 const ALGORITHM = 'aes-256-gcm';
 const KEY_LENGTH = 32;
 const IV_LENGTH = 16;
@@ -9,15 +8,19 @@ const TAG_LENGTH = 16;
 const TAG_POSITION = SALT_LENGTH + IV_LENGTH;
 const ENCRYPTED_POSITION = TAG_POSITION + TAG_LENGTH;
 
-if (!ENCRYPTION_KEY) {
-  throw new Error('DERIV_TOKEN_ENCRYPTION_KEY environment variable is required for token encryption');
+function getEncryptionKey(): string {
+  const key = process.env.DERIV_TOKEN_ENCRYPTION_KEY;
+  if (!key) {
+    throw new Error('DERIV_TOKEN_ENCRYPTION_KEY environment variable is required for token encryption');
+  }
+  return key;
 }
 
 /**
  * Derive a key from the environment variable using PBKDF2
  */
 function deriveKey(salt: Buffer): Buffer {
-  return crypto.pbkdf2Sync(ENCRYPTION_KEY!, salt, 100000, KEY_LENGTH, 'sha256');
+  return crypto.pbkdf2Sync(getEncryptionKey(), salt, 100000, KEY_LENGTH, 'sha256');
 }
 
 /**
