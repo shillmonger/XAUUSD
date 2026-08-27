@@ -55,6 +55,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    console.log('Switch account request - current activeDerivAccountType:', user.activeDerivAccountType);
+    console.log('Switch account request - target type:', normalizedAccountType);
+
     // Check if user has an account of the requested type connected
     const targetAccount = await DerivAccount.findOne({ 
       userId,
@@ -99,6 +102,8 @@ export async function POST(request: NextRequest) {
     // Update user's active account type
     user.activeDerivAccountType = normalizedAccountType;
     await user.save();
+
+    console.log('Updated user activeDerivAccountType to:', user.activeDerivAccountType);
 
     return NextResponse.json({
       success: true,

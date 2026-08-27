@@ -770,7 +770,7 @@ export default function ConnectDerivPage() {
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  Demo Mode
+                  {accountType === "DEMO" ? "Demo Mode ACTIVE" : "Demo Mode"}
                 </button>
                 <button
                   type="button"
@@ -781,7 +781,7 @@ export default function ConnectDerivPage() {
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  Live Mode
+                  {accountType === "LIVE" ? "Live Mode ACTIVE" : "Live Mode"}
                 </button>
               </div>
             </div>

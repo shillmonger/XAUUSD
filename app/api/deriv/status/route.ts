@@ -37,7 +37,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
-      );
+     );
+    }
+
+    console.log('User activeDerivAccountType:', user.activeDerivAccountType);
+    console.log('User full object:', JSON.stringify(user, null, 2));
+
+    // If user doesn't have activeDerivAccountType set, default to demo and save it
+    if (!user.activeDerivAccountType) {
+      user.activeDerivAccountType = 'demo';
+      await user.save();
+      console.log('Set default activeDerivAccountType to demo');
     }
 
     // Find the user's Deriv account connection for the active account type
@@ -46,6 +56,8 @@ export async function GET(request: NextRequest) {
       accountType: user.activeDerivAccountType || 'demo',
       connectionStatus: 'connected'
     });
+
+    console.log('Found derivAccount for type:', user.activeDerivAccountType || 'demo', derivAccount ? 'YES' : 'NO');
 
     if (!derivAccount) {
       return NextResponse.json({
