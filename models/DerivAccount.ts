@@ -17,6 +17,8 @@ export interface IDerivAccount extends Document {
   currency?: string;
   accountStatus?: string;
   group?: string;
+  // Bot execution state
+  botStatus?: 'ACTIVE' | 'PAUSED' | 'OFF';
   createdAt: Date;
   updatedAt: Date;
 }
@@ -76,6 +78,12 @@ const DerivAccountSchema: Schema<IDerivAccount> = new Schema(
     },
     group: {
       type: String,
+    },
+    // Bot execution state
+    botStatus: {
+      type: String,
+      enum: ['ACTIVE', 'PAUSED', 'OFF'],
+      default: 'OFF',
     },
   },
   {

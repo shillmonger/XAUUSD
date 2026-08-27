@@ -27,33 +27,47 @@ export async function POST(request: NextRequest) {
     }
     const userId = decoded.userId;
 
+    // Parse request body
+    const body = await request.json();
+    const { botStatus } = body;
+
+    // Validate botStatus
+    if (!botStatus || !['ACTIVE', 'PAUSED', 'OFF'].includes(botStatus)) {
+      return NextResponse.json(
+        { error: 'Invalid bot status. Must be ACTIVE, PAUSED, or OFF' },
+        { status: 400 }
+      );
+    }
+
     // Connect to database
     await connectDB();
 
-    // Find and update the user's Deriv account connection
-    const derivAccount = await DerivAccount.findOne({ userId });
-    
+    // Find the user's Deriv account connection
+    const derivAccount = await DerivAccount.findOne({ 
+      userId,
+      connectionStatus: 'connected'
+    });
+
     if (!derivAccount) {
       return NextResponse.json(
-        { error: 'No Deriv account connection found' },
+        { error: 'No connected Deriv account found' },
         { status: 404 }
       );
     }
 
-    // Update connection status to disconnected instead of deleting
-    derivAccount.connectionStatus = 'disconnected';
-    derivAccount.disconnectedAt = new Date();
-    derivAccount.botStatus = 'OFF';
+    // Update bot status
+    derivAccount.botStatus = botStatus;
     await derivAccount.save();
 
     return NextResponse.json({
-      message: 'Deriv account disconnected successfully',
+      success: true,
+      botStatus: derivAccount.botStatus,
     });
 
   } catch (error) {
-    console.error('Deriv disconnect error:', error);
+    console.error('Bot status update error:', error);
     return NextResponse.json(
-      { error: 'Failed to disconnect Deriv account' },
+      { error: 'Failed to update bot status' },
       { status: 500 }
     );
   }

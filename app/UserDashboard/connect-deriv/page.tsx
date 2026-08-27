@@ -181,12 +181,14 @@ export default function ConnectDerivPage() {
           setAccountStatus(data.accountStatus || "Active");
           setBalance(data.balance || "0");
           setCurrency(data.currency || "USD");
+          setBotStatus(data.botStatus || "OFF");
         } else {
           setDerivConnected(false);
           setAccountId("");
           setAccountStatus("");
           setBalance("0");
           setCurrency("USD");
+          setBotStatus("OFF");
         }
       } catch (error) {
         console.error('Failed to check connection status:', error);
@@ -290,20 +292,83 @@ export default function ConnectDerivPage() {
     if (type === "DEMO") setBotStatus("OFF");
   };
 
-  const handleToggleBot = () => {
+  const handleToggleBot = async () => {
+    let newStatus: "ACTIVE" | "PAUSED" | "OFF";
+    
     if (botStatus === "OFF") {
       if (accountType === "LIVE" && !subscriptionStatus) return;
-      setBotStatus("ACTIVE");
+      newStatus = "ACTIVE";
     } else if (botStatus === "ACTIVE") {
-      setBotStatus("PAUSED");
+      newStatus = "PAUSED";
     } else {
-      setBotStatus("ACTIVE");
+      newStatus = "ACTIVE";
+    }
+
+    // Update local state
+    setBotStatus(newStatus);
+
+    // Persist to database
+    try {
+      const response = await fetch('/api/deriv/bot-status', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ botStatus: newStatus }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update bot status');
+      }
+
+      const data = await response.json();
+      if (data.success) {
+        toast.success(
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+            <span>Bot status updated to {newStatus}</span>
+          </div>
+        );
+      }
+    } catch (error) {
+      console.error('Failed to update bot status:', error);
+      toast.error(
+        <div className="flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 text-red-500" />
+          <span>Failed to update bot status in database</span>
+        </div>
+      );
+      // Revert local state on error
+      setBotStatus(botStatus);
     }
   };
 
-  const handleStartDemoTrading = () => {
+  const handleStartDemoTrading = async () => {
     setAccountType("DEMO");
     setBotStatus("ACTIVE");
+
+    // Persist to database
+    try {
+      const response = await fetch('/api/deriv/bot-status', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ botStatus: "ACTIVE" }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update bot status');
+      }
+    } catch (error) {
+      console.error('Failed to update bot status:', error);
+      toast.error(
+        <div className="flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 text-red-500" />
+          <span>Failed to update bot status in database</span>
+        </div>
+      );
+    }
   };
 
   return (

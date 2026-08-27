@@ -65,6 +65,7 @@ export async function GET(request: NextRequest) {
       balance: derivAccount.balance || '0',
       currency: derivAccount.currency || 'USD',
       accountStatus: derivAccount.accountStatus || 'unknown',
+      botStatus: derivAccount.botStatus || 'OFF',
     });
 
   } catch (error) {
