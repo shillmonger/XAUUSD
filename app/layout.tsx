@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Automated Trading Platform",
+  title: "Automated XAUUSD Platform",
   description:
     "Connect your Deriv account and access automated XAUUSD trading with secure account connectivity, signal validation, trade execution, and real-time trade monitoring.",
 };
