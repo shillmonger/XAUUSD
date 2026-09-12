@@ -112,7 +112,15 @@ export async function POST(request: NextRequest) {
             // First time scanning, get most recent message to establish checkpoint
             console.log(`[Telegram Collector] First scan for ${provider.groupName}, fetching latest message`);
             try {
-              const result = await client.getMessages(provider.groupId, { limit: 1 });
+              // Try as string first
+              let result;
+              try {
+                result = await client.getMessages(provider.groupId, { limit: 1 });
+              } catch (stringError: any) {
+                console.log(`[Telegram Collector] String ID failed, trying as number`);
+                result = await client.getMessages(Number(provider.groupId), { limit: 1 });
+              }
+              
               console.log(`[Telegram Collector] Got ${result.length} messages for first scan`);
               if (result.length > 0) {
                 // Just update the checkpoint, don't store messages for first scan
@@ -131,7 +139,14 @@ export async function POST(request: NextRequest) {
             // Fetch messages newer than lastProcessedMessageId
             console.log(`[Telegram Collector] Fetching new messages for ${provider.groupName} (last processed: ${lastProcessedId})`);
             try {
-              const result = await client.getMessages(provider.groupId, { limit: 100 });
+              let result;
+              try {
+                result = await client.getMessages(provider.groupId, { limit: 100 });
+              } catch (stringError: any) {
+                console.log(`[Telegram Collector] String ID failed, trying as number`);
+                result = await client.getMessages(Number(provider.groupId), { limit: 100 });
+              }
+              
               messages = result.filter((msg: any) => msg.id > lastProcessedId);
               console.log(`[Telegram Collector] New messages for ${provider.groupName}: ${messages.length}`);
             } catch (msgError: any) {
