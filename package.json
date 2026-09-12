@@ -9,8 +9,7 @@
     "lint": "eslint",
     "reprocess:messages": "tsx scripts/reprocess-telegram-messages.ts",
     "test": "jest",
-    "test:watch": "jest --watch",
-    "test:demo-trade": "tsx scripts/test-demo-trade.ts"
+    "test:watch": "jest --watch"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
@@ -42,7 +41,6 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@types/jest": "^29.5.12",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^20",
     "@types/react": "^19",
@@ -50,9 +48,7 @@
     "@types/ws": "^8.18.1",
     "eslint": "^9",
     "eslint-config-next": "16.3.2",
-    "jest": "^29.7.0",
     "tailwindcss": "^4",
-    "ts-jest": "^29.1.1",
     "tsx": "^4.23.13",
     "typescript": "^5"
   }

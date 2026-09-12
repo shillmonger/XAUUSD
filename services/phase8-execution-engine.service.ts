@@ -18,7 +18,7 @@ import mongoose from 'mongoose';
 import Signal from '@/models/Signal';
 import TradeParameters from '@/models/TradeParameters';
 import UserEligibility from '@/models/UserEligibility';
-import { derivAdapter, InternalTradeRequest, ExecutionResult } from './deriv-adapter.service';
+import { derivAdapter, InternalTradeRequest, ExecutionResult, DerivAdapter } from './deriv-adapter.service';
 import { ISignal } from '@/models/Signal';
 
 export interface ExecutionSummary {
@@ -136,7 +136,7 @@ export class Phase8ExecutionEngine {
           }
 
           // Step 3d: Build internal trade request
-          const tradeRequest = derivAdapter.buildTradeRequest(
+          const tradeRequest = DerivAdapter.buildTradeRequest(
             signal,
             tradeParameters,
             eligibility
