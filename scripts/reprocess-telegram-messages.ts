@@ -36,12 +36,15 @@ if (!MONGODB_URI) {
   process.exit(1);
 }
 
+// Type assertion since we've verified MONGODB_URI is not undefined
+const mongoUri: string = MONGODB_URI;
+
 async function connectDB() {
   if (mongoose.connection.readyState === 1) {
     return mongoose.connection;
   }
 
-  await mongoose.connect(MONGODB_URI);
+  await mongoose.connect(mongoUri);
   console.log('[Reprocess Script] Connected to database');
   return mongoose.connection;
 }
