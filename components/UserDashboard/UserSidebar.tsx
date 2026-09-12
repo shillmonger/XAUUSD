@@ -183,7 +183,7 @@ export default function UserSidebar({
       {
         name: "Profile Settings",
         icon: Settings,
-        href: `${basePath}/user-settings`,
+        href: `${basePath}/account-setting`,
       },
       ...(userRole.includes("admin")
         ? [

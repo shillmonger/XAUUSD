@@ -13,12 +13,15 @@ export interface IUser extends Document {
   role: 'user' | 'admin';
   status: 'active' | 'inactive' | 'suspended';
   avatar?: string;
+  phone?: string;
+  country?: string;
   lastLoginAt?: Date;
   agreedToTerms: boolean;
   // Track which Deriv account type is currently active
   activeDerivAccountType?: 'demo' | 'real';
   createdAt: Date;
   updatedAt: Date;
+  __v?: number;
 }
 
 const UserSchema: Schema<IUser> = new Schema(
@@ -41,7 +44,7 @@ const UserSchema: Schema<IUser> = new Schema(
     passwordHash: {
       type: String,
       required: [true, 'Password is required'],
-      minlength: [6, 'Password must be at least 6 characters'],
+      minlength: [8, 'Password must be at least 8 characters'],
     },
     emailVerified: {
       type: Boolean,
@@ -71,6 +74,14 @@ const UserSchema: Schema<IUser> = new Schema(
     },
     avatar: {
       type: String,
+    },
+    phone: {
+      type: String,
+      default: null,
+    },
+    country: {
+      type: String,
+      default: null,
     },
     lastLoginAt: {
       type: Date,
