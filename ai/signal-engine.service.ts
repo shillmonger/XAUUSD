@@ -10,6 +10,7 @@ import {
   extractDirection,
   extractOrderType,
   extractEntry,
+  extractEntryFromRange,
   extractStopLoss,
   extractTakeProfits,
   hasStrongTradingIndicators,
