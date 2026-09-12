@@ -3,9 +3,12 @@ import connectDB from '@/lib/db';
 import TelegramConnection from '@/models/TelegramConnection';
 import TelegramProvider from '@/models/TelegramProvider';
 import TelegramMessage from '@/models/TelegramMessage';
+import AIMessage from '@/models/AIMessage';
 import { TelegramClient } from 'teleproto';
 import { StringSession } from 'teleproto/sessions';
 import { decryptTelegramSession } from '@/lib/encryption';
+import { isCandidateSignalWithContext } from '@/lib/candidate-filter';
+import { SignalAIService } from '@/ai/signal-ai.service';
 
 // Add GET method for testing purposes
 export async function GET(request: NextRequest) {
@@ -254,6 +257,87 @@ export async function POST(request: NextRequest) {
               await telegramMessage.save();
               messagesStoredForProvider++;
               totalMessagesStored++;
+
+              // Phase 3: AI Signal Extraction
+              console.log(`[AI] Processing message ${message.id} for AI signal extraction`);
+              
+              // Run candidate filter
+              const isCandidate = isCandidateSignalWithContext(messageText, true);
+              
+              if (!isCandidate) {
+                console.log(`[AI] Message ${message.id} skipped - not an AI candidate`);
+                continue;
+              }
+              
+              console.log(`[AI] Candidate Telegram message detected: ${message.id}`);
+              
+              // Check if AI processing already exists for this message
+              const existingAIProcessing = await AIMessage.findOne({
+                telegramGroupId: provider.groupId,
+                telegramMessageId: message.id
+              });
+              
+              if (existingAIProcessing) {
+                console.log(`[AI] Message ${message.id} already processed - skipping`);
+                continue;
+              }
+              
+              console.log(`[AI] Sending message ${message.id} to NaraRouter`);
+              
+              // Create AIMessage record
+              const aiMessage = new AIMessage({
+                telegramMessageDbId: telegramMessage._id,
+                telegramGroupId: provider.groupId,
+                providerId: provider._id,
+                telegramMessageId: message.id,
+                originalMessageText: messageText,
+                aiProvider: 'NaraRouter', // Will be updated by service
+                aiModel: 'unknown', // Will be updated by service
+                promptVersion: 'unknown', // Will be updated by service
+                processingStatus: 'pending',
+                processingStartedAt: new Date(),
+              });
+              
+              try {
+                // Update status to processing
+                aiMessage.processingStatus = 'processing';
+                await aiMessage.save();
+                
+                // Initialize AI service and extract signal
+                const signalAIService = new SignalAIService();
+                const extractionResult = await signalAIService.extractSignal(messageText);
+                
+                // Update AIMessage with results
+                aiMessage.aiProvider = signalAIService.getProviderName();
+                aiMessage.aiModel = signalAIService.getModel();
+                aiMessage.promptVersion = signalAIService.getPromptVersion();
+                aiMessage.processingCompletedAt = new Date();
+                
+                if (extractionResult.success) {
+                  aiMessage.aiResponseRaw = JSON.stringify(extractionResult.result);
+                  aiMessage.aiResponseParsed = extractionResult.result;
+                  aiMessage.processingStatus = 'completed';
+                  console.log(`[AI] Signal extraction completed for message ${message.id}`);
+                } else {
+                  aiMessage.processingStatus = 'failed';
+                  aiMessage.errorMessage = extractionResult.error;
+                  console.log(`[AI] Signal extraction failed for message ${message.id}: ${extractionResult.error}`);
+                }
+                
+                await aiMessage.save();
+                
+              } catch (aiError: any) {
+                console.error(`[AI] Error processing message ${message.id}:`, aiError.message);
+                
+                // Update AIMessage with failure
+                aiMessage.processingStatus = 'failed';
+                aiMessage.errorMessage = aiError.message || 'Unknown AI processing error';
+                aiMessage.processingCompletedAt = new Date();
+                await aiMessage.save();
+                
+                // Continue with other messages - don't let AI failure stop Telegram collection
+                continue;
+              }
 
             } catch (saveError: any) {
               // Check for duplicate key error (code 11000)
