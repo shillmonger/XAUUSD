@@ -43,13 +43,60 @@ export async function POST(request: NextRequest) {
     // Connect to database
     await connectDB();
 
-    // Check if there's already a connection in progress and delete it
-    const existingConnection = await TelegramConnection.findOne({ status: 'connecting' });
+    // Check if there's already a connected session we can reuse
+    const existingConnection = await TelegramConnection.findOne({ status: 'connected' }).sort({ createdAt: -1 });
+    
     if (existingConnection) {
-      await TelegramConnection.deleteOne({ _id: existingConnection._id });
+      // Try to reuse the existing session
+      try {
+        const { decryptTelegramSession } = await import('@/lib/encryption');
+        const sessionString = decryptTelegramSession(existingConnection.sessionEncrypted);
+        
+        // Create a client with the existing session
+        const stringSession = new StringSession(sessionString);
+        const client = new TelegramClient(stringSession, apiId, apiHash, {
+          connectionRetries: 5,
+        });
+
+        // Try to connect with the existing session
+        await client.connect();
+        
+        // Verify the session is still valid by getting user info
+        await client.getMe();
+        
+        // Session is valid, update the connection
+        await TelegramConnection.findByIdAndUpdate(
+          existingConnection._id,
+          {
+            lastCheckedAt: new Date(),
+            status: 'connected',
+          }
+        );
+        
+        await client.disconnect();
+
+        return NextResponse.json({
+          success: true,
+          message: 'Telegram reconnected successfully using existing session',
+          account: {
+            telegramUserId: existingConnection.telegramUserId,
+            username: existingConnection.username,
+            firstName: existingConnection.firstName,
+          },
+        });
+      } catch (error) {
+        // Existing session is invalid, continue with fresh authentication
+        console.log('Existing session invalid, starting fresh authentication');
+      }
     }
 
-    // Create a new Telegram client
+    // Check if there's already a connection in progress and delete it
+    const connectingConnection = await TelegramConnection.findOne({ status: 'connecting' });
+    if (connectingConnection) {
+      await TelegramConnection.deleteOne({ _id: connectingConnection._id });
+    }
+
+    // Create a new Telegram client for fresh authentication
     const stringSession = new StringSession('');
     const client = new TelegramClient(stringSession, apiId, apiHash, {
       connectionRetries: 5,
@@ -92,7 +139,7 @@ export async function POST(request: NextRequest) {
           status: 'connecting',
           errorMessage: 'OTP verification required',
         },
-        { upsert: true }
+        { upsert: true, returnDocument: 'after' }
       );
 
       // Disconnect the client

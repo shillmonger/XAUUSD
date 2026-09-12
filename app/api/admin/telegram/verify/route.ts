@@ -146,7 +146,9 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      if (error.message && error.message.includes('PHONE_CODE_INVALID') || error.message.includes('invalid')) {
+      if (error.message && (error.message.includes('PHONE_CODE_INVALID') || 
+                             error.message.toLowerCase().includes('invalid') ||
+                             error.message.includes('phone code'))) {
         return NextResponse.json({
           success: false,
           error: 'Invalid verification code. Please try again.',
