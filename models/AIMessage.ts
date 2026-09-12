@@ -7,11 +7,10 @@ export interface IAIMessage extends Document {
   providerId: mongoose.Types.ObjectId;
   telegramMessageId: number; // Telegram's numeric message ID
   originalMessageText: string;
-  aiProvider: string;
-  aiModel: string;
-  promptVersion: string;
-  aiResponseRaw: string; // Raw AI response text
-  aiResponseParsed: any; // Parsed/structured result
+  aiProvider: string; // Now refers to internal engine name
+  engineVersion: string; // Version of the internal signal engine
+  aiResponseRaw: string; // Raw engine response text (if applicable)
+  aiResponseParsed: any; // Parsed/structured result from internal engine
   processingStatus: 'pending' | 'processing' | 'completed' | 'failed';
   errorMessage?: string;
   processingStartedAt?: Date;
@@ -46,15 +45,11 @@ const AIMessageSchema: Schema<IAIMessage> = new Schema(
     },
     aiProvider: {
       type: String,
-      required: [true, 'AI provider name is required'],
+      required: [true, 'AI provider/engine name is required'],
     },
-    aiModel: {
+    engineVersion: {
       type: String,
-      required: [true, 'AI model is required'],
-    },
-    promptVersion: {
-      type: String,
-      required: [true, 'Prompt version is required'],
+      required: [true, 'Engine version is required'],
     },
     aiResponseRaw: {
       type: String,

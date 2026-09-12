@@ -4,11 +4,13 @@ import TelegramConnection from '@/models/TelegramConnection';
 import TelegramProvider from '@/models/TelegramProvider';
 import TelegramMessage from '@/models/TelegramMessage';
 import AIMessage from '@/models/AIMessage';
+import Signal from '@/models/Signal';
 import { TelegramClient } from 'teleproto';
 import { StringSession } from 'teleproto/sessions';
 import { decryptTelegramSession } from '@/lib/encryption';
 import { isCandidateSignalWithContext } from '@/lib/candidate-filter';
-import { SignalAIService } from '@/ai/signal-ai.service';
+import { SignalIntelligenceService } from '@/ai/signal-ai.service';
+import { validateSignal } from '@/ai/signal-validator';
 
 // Add GET method for testing purposes
 export async function GET(request: NextRequest) {
@@ -258,18 +260,18 @@ export async function POST(request: NextRequest) {
               messagesStoredForProvider++;
               totalMessagesStored++;
 
-              // Phase 3: AI Signal Extraction
-              console.log(`[AI] Processing message ${message.id} for AI signal extraction`);
+              // Phase 3: Internal Signal Intelligence Engine
+              console.log(`[Signal Engine] Processing message ${message.id} for signal extraction`);
               
               // Run candidate filter
               const isCandidate = isCandidateSignalWithContext(messageText, true);
               
               if (!isCandidate) {
-                console.log(`[AI] Message ${message.id} skipped - not an AI candidate`);
+                console.log(`[Signal Engine] Message ${message.id} skipped - not a signal candidate`);
                 continue;
               }
               
-              console.log(`[AI] Candidate Telegram message detected: ${message.id}`);
+              console.log(`[Signal Engine] Candidate Telegram message detected: ${message.id}`);
               
               // Check if AI processing already exists for this message
               const existingAIProcessing = await AIMessage.findOne({
@@ -278,11 +280,11 @@ export async function POST(request: NextRequest) {
               });
               
               if (existingAIProcessing) {
-                console.log(`[AI] Message ${message.id} already processed - skipping`);
+                console.log(`[Signal Engine] Message ${message.id} already processed - skipping`);
                 continue;
               }
               
-              console.log(`[AI] Sending message ${message.id} to NaraRouter`);
+              console.log(`[Signal Engine] Sending message ${message.id} to Internal Signal Engine`);
               
               // Create AIMessage record
               const aiMessage = new AIMessage({
@@ -291,9 +293,8 @@ export async function POST(request: NextRequest) {
                 providerId: provider._id,
                 telegramMessageId: message.id,
                 originalMessageText: messageText,
-                aiProvider: 'NaraRouter', // Will be updated by service
-                aiModel: 'unknown', // Will be updated by service
-                promptVersion: 'unknown', // Will be updated by service
+                aiProvider: 'InternalSignalEngine', // Will be updated by service
+                engineVersion: 'v1', // Will be updated by service
                 processingStatus: 'pending',
                 processingStartedAt: new Date(),
               });
@@ -303,39 +304,100 @@ export async function POST(request: NextRequest) {
                 aiMessage.processingStatus = 'processing';
                 await aiMessage.save();
                 
-                // Initialize AI service and extract signal
-                const signalAIService = new SignalAIService();
-                const extractionResult = await signalAIService.extractSignal(messageText);
+                // Initialize signal intelligence service and extract signal
+                const signalIntelligenceService = new SignalIntelligenceService();
+                const result = await signalIntelligenceService.extractAndValidateSignal(messageText);
                 
                 // Update AIMessage with results
-                aiMessage.aiProvider = signalAIService.getProviderName();
-                aiMessage.aiModel = signalAIService.getModel();
-                aiMessage.promptVersion = signalAIService.getPromptVersion();
+                aiMessage.aiProvider = signalIntelligenceService.getEngineName();
+                aiMessage.engineVersion = signalIntelligenceService.getEngineVersion();
                 aiMessage.processingCompletedAt = new Date();
                 
-                if (extractionResult.success) {
-                  aiMessage.aiResponseRaw = JSON.stringify(extractionResult.result);
-                  aiMessage.aiResponseParsed = extractionResult.result;
+                if (result.success && result.extractionResult) {
+                  aiMessage.aiResponseRaw = JSON.stringify(result.extractionResult);
+                  aiMessage.aiResponseParsed = result.extractionResult;
                   aiMessage.processingStatus = 'completed';
-                  console.log(`[AI] Signal extraction completed for message ${message.id}`);
+                  console.log(`[Signal Engine] Signal extraction completed for message ${message.id}`);
+                  
+                  // Phase 4: Deterministic Validation and Signal Storage
+                  if (result.validationResult && result.validationResult.isValid) {
+                    console.log(`[Signal Validator] Signal validation passed for message ${message.id}`);
+                    
+                    // Check if signal already exists for this message
+                    const existingSignal = await Signal.findOne({
+                      telegramGroupId: provider.groupId,
+                      telegramMessageId: message.id
+                    });
+                    
+                    if (!existingSignal) {
+                      // Create Signal record
+                      const signal = new Signal({
+                        telegramMessageId: message.id,
+                        aiMessageId: aiMessage._id,
+                        telegramGroupId: provider.groupId,
+                        providerId: provider._id,
+                        symbol: result.validationResult.validatedSignal.symbol,
+                        direction: result.validationResult.validatedSignal.direction,
+                        orderType: result.validationResult.validatedSignal.orderType,
+                        entry: result.validationResult.validatedSignal.entry,
+                        stopLoss: result.validationResult.validatedSignal.stopLoss,
+                        takeProfits: result.validationResult.validatedSignal.takeProfits,
+                        validationStatus: 'valid',
+                        validationReason: null,
+                      });
+                      
+                      await signal.save();
+                      console.log(`[Signal Validator] Valid signal stored for message ${message.id}`);
+                    } else {
+                      console.log(`[Signal Validator] Signal already exists for message ${message.id}`);
+                    }
+                  } else {
+                    console.log(`[Signal Validator] Signal validation failed for message ${message.id}: ${result.validationResult?.reason}`);
+                    
+                    // Store rejected signal for audit/debugging
+                    const existingSignal = await Signal.findOne({
+                      telegramGroupId: provider.groupId,
+                      telegramMessageId: message.id
+                    });
+                    
+                    if (!existingSignal && result.extractionResult) {
+                      const rejectedSignal = new Signal({
+                        telegramMessageId: message.id,
+                        aiMessageId: aiMessage._id,
+                        telegramGroupId: provider.groupId,
+                        providerId: provider._id,
+                        symbol: result.extractionResult.symbol,
+                        direction: result.extractionResult.direction,
+                        orderType: result.extractionResult.orderType,
+                        entry: result.extractionResult.entry,
+                        stopLoss: result.extractionResult.stopLoss,
+                        takeProfits: result.extractionResult.takeProfits,
+                        validationStatus: 'rejected',
+                        validationReason: result.validationResult?.reason || 'Unknown validation failure',
+                      });
+                      
+                      await rejectedSignal.save();
+                      console.log(`[Signal Validator] Rejected signal stored for message ${message.id}`);
+                    }
+                  }
                 } else {
                   aiMessage.processingStatus = 'failed';
-                  aiMessage.errorMessage = extractionResult.error;
-                  console.log(`[AI] Signal extraction failed for message ${message.id}: ${extractionResult.error}`);
+                  aiMessage.errorMessage = result.error || 'Signal extraction failed';
+                  console.log(`[Signal Engine] Signal extraction failed for message ${message.id}: ${result.error}`);
                 }
                 
                 await aiMessage.save();
                 
               } catch (aiError: any) {
-                console.error(`[AI] Error processing message ${message.id}:`, aiError.message);
+                console.error(`[Signal Engine] Error processing message ${message.id}:`, aiError.message);
                 
                 // Update AIMessage with failure
                 aiMessage.processingStatus = 'failed';
-                aiMessage.errorMessage = aiError.message || 'Unknown AI processing error';
+                aiMessage.errorMessage = aiError.message || 'Unknown signal processing error';
                 aiMessage.processingCompletedAt = new Date();
                 await aiMessage.save();
                 
-                // Continue with other messages - don't let AI failure stop Telegram collection
+                // Continue with other messages - don't let signal engine failure stop Telegram collection
                 continue;
               }
 

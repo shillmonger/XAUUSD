@@ -1,82 +1,74 @@
 /**
- * Signal AI Service
- * Orchestrates AI-based signal extraction from Telegram messages
- * Uses the AI provider interface to make requests and validate responses
+ * Signal Intelligence Service
+ * Orchestrates internal signal intelligence engine for extracting trading signals from Telegram messages
+ * Uses the internal signal engine instead of external AI providers
  */
 
-import { AIProvider } from './ai-provider.interface';
-import { NaraRouterProvider } from './nararouter.provider';
-import { getSystemPrompt, AI_PROMPT_VERSION } from './prompt';
-import { safeValidateSignalExtraction, SignalExtractionResult } from './signal-schema';
+import { SignalEngine } from './ai-provider.interface';
+import { InternalSignalEngine } from './signal-engine.service';
+import { validateSignal } from './signal-validator';
+import { SignalExtractionResult } from './signal-schema';
 
-export class SignalAIService {
-  private aiProvider: AIProvider;
-  private model: string;
+export class SignalIntelligenceService {
+  private signalEngine: SignalEngine;
 
   constructor() {
-    // Initialize with NaraRouter provider
-    this.aiProvider = new NaraRouterProvider();
-    this.model = process.env.AI_MODEL || 'deepseek-v4.1-flash-free';
+    // Initialize with internal signal engine
+    this.signalEngine = new InternalSignalEngine();
   }
 
   /**
-   * Extract trading signal from a Telegram message
+   * Extract and validate trading signal from a Telegram message
    * @param messageText - The Telegram message text to analyze
-   * @returns Promise with the extracted signal or null if extraction fails
+   * @returns Promise with the extracted and validated signal or null if extraction/validation fails
    */
-  async extractSignal(messageText: string): Promise<{
+  async extractAndValidateSignal(messageText: string): Promise<{
     success: boolean;
-    result?: SignalExtractionResult;
+    extractionResult?: SignalExtractionResult;
+    validationResult?: any;
     error?: string;
   }> {
     try {
-      console.log(`[AI Service] Starting signal extraction for message: "${messageText.substring(0, 50)}..."`);
+      console.log(`[Signal Intelligence Service] Starting signal extraction and validation for message: "${messageText.substring(0, 50)}..."`);
 
-      // Get the system prompt
-      const systemPrompt = getSystemPrompt(AI_PROMPT_VERSION);
+      // Step 1: Extract signal using internal engine
+      const extractionResult = await this.signalEngine.extractSignal(messageText);
 
-      // Send request to AI provider
-      const aiResponse = await this.aiProvider.sendRequest(
-        systemPrompt,
-        messageText,
-        this.model
-      );
-
-      console.log(`[AI Service] AI response received`);
-
-      // Parse the AI response
-      let parsedResponse;
-      try {
-        parsedResponse = JSON.parse(aiResponse);
-      } catch (parseError) {
-        console.error(`[AI Service] Failed to parse AI response as JSON:`, parseError);
+      if (!extractionResult.isValidSignal) {
+        console.log(`[Signal Intelligence Service] Signal extraction failed - not a valid signal`);
         return {
           success: false,
-          error: 'Failed to parse AI response as JSON'
+          extractionResult,
+          error: 'Not a valid trading signal'
         };
       }
 
-      // Validate against schema
-      const validationResult = safeValidateSignalExtraction(parsedResponse);
+      console.log(`[Signal Intelligence Service] Signal extraction successful`);
 
-      if (!validationResult.success) {
-        console.error(`[AI Service] Schema validation failed:`, validationResult.error);
+      // Step 2: Validate signal using deterministic validator
+      const validationResult = validateSignal(extractionResult);
+
+      if (!validationResult.isValid) {
+        console.log(`[Signal Intelligence Service] Signal validation failed: ${validationResult.reason}`);
         return {
           success: false,
-          error: validationResult.error
+          extractionResult,
+          validationResult,
+          error: validationResult.reason
         };
       }
 
-      console.log(`[AI Service] Signal extraction completed successfully`);
-      console.log(`[AI Service] Result:`, JSON.stringify(validationResult.data));
+      console.log(`[Signal Intelligence Service] Signal validation successful`);
+      console.log(`[Signal Intelligence Service] Final result:`, JSON.stringify(validationResult.validatedSignal));
 
       return {
         success: true,
-        result: validationResult.data
+        extractionResult,
+        validationResult,
       };
 
     } catch (error) {
-      console.error(`[AI Service] Signal extraction failed:`, error);
+      console.error(`[Signal Intelligence Service] Signal extraction and validation failed:`, error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -85,23 +77,16 @@ export class SignalAIService {
   }
 
   /**
-   * Get the AI provider name for logging
+   * Get the signal engine name for logging
    */
-  getProviderName(): string {
-    return this.aiProvider.getProviderName();
+  getEngineName(): string {
+    return this.signalEngine.getEngineName();
   }
 
   /**
-   * Get the AI model being used
+   * Get the signal engine version
    */
-  getModel(): string {
-    return this.model;
-  }
-
-  /**
-   * Get the prompt version being used
-   */
-  getPromptVersion(): string {
-    return AI_PROMPT_VERSION;
+  getEngineVersion(): string {
+    return this.signalEngine.getEngineVersion();
   }
 }

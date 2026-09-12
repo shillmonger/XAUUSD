@@ -54,7 +54,9 @@ export function isCandidateSignal(messageText: string): boolean {
     return false;
   }
 
-  const upperText = messageText.toUpperCase();
+  // Normalize multiple spaces to single space for better pattern matching
+  const normalizedText = messageText.replace(/\s+/g, ' ');
+  const upperText = normalizedText.toUpperCase();
 
   // Check for any candidate keywords
   for (const keyword of CANDIDATE_KEYWORDS) {
@@ -76,7 +78,9 @@ export function hasXAUUSDContext(messageText: string): boolean {
     return false;
   }
 
-  const upperText = messageText.toUpperCase();
+  // Normalize multiple spaces to single space for better pattern matching
+  const normalizedText = messageText.replace(/\s+/g, ' ');
+  const upperText = normalizedText.toUpperCase();
 
   // Check for explicit XAUUSD or GOLD references
   return upperText.includes('XAUUSD') || upperText.includes('GOLD');
@@ -91,7 +95,9 @@ export function hasStrongTradingIndicators(messageText: string): boolean {
     return false;
   }
 
-  const upperText = messageText.toUpperCase();
+  // Normalize multiple spaces to single space for better pattern matching
+  const normalizedText = messageText.replace(/\s+/g, ' ');
+  const upperText = normalizedText.toUpperCase();
 
   // Strong trading indicators that suggest a concrete signal
   const strongIndicators = [
@@ -129,19 +135,22 @@ export function isCandidateSignalWithContext(
   messageText: string,
   requireXAUUSDContext: boolean = true
 ): boolean {
-  const hasKeywords = isCandidateSignal(messageText);
+  // Normalize multiple spaces to single space for better pattern matching
+  const normalizedText = messageText.replace(/\s+/g, ' ');
+  
+  const hasKeywords = isCandidateSignal(normalizedText);
 
   if (!hasKeywords) {
     return false;
   }
 
   if (requireXAUUSDContext) {
-    const hasXAUUSD = hasXAUUSDContext(messageText);
+    const hasXAUUSD = hasXAUUSDContext(normalizedText);
     
     // If it has XAUUSD/GOLD context, also check for strong trading indicators
     // This helps filter out market commentary vs actual trading signals
     if (hasXAUUSD) {
-      return hasStrongTradingIndicators(messageText);
+      return hasStrongTradingIndicators(normalizedText);
     }
     
     return false;

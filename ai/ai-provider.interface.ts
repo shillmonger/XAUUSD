@@ -1,26 +1,29 @@
 /**
- * AI Provider Interface
- * Defines the contract for AI providers (NaraRouter, OpenAI, etc.)
- * This abstraction allows the signal engine to work with different AI providers
+ * Signal Intelligence Engine Interface
+ * Defines the contract for internal signal intelligence engines
+ * This abstraction allows the platform to work with different signal extraction implementations
  */
 
-export interface AIProvider {
+export interface SignalEngine {
   /**
-   * Send a request to the AI provider
-   * @param systemPrompt - The system prompt/instructions
-   * @param userMessage - The user message to process
-   * @param model - The AI model to use
-   * @returns Promise with the AI response
+   * Extract trading signal from a Telegram message
+   * @param messageText - The Telegram message text to analyze
+   * @returns Promise with the extracted signal result
    */
-  sendRequest(systemPrompt: string, userMessage: string, model: string): Promise<string>;
+  extractSignal(messageText: string): Promise<SignalExtractionResult>;
 
   /**
-   * Get the provider name for logging/debugging
+   * Get the engine name for logging/debugging
    */
-  getProviderName(): string;
+  getEngineName(): string;
+
+  /**
+   * Get the engine version
+   */
+  getEngineVersion(): string;
 }
 
-export interface AISignalExtractionResult {
+export interface SignalExtractionResult {
   isValidSignal: boolean;
   symbol?: string;
   direction?: 'BUY' | 'SELL';
