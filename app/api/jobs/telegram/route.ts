@@ -194,8 +194,11 @@ export async function POST(request: NextRequest) {
               }
 
               const senderId = message.senderId ? Number(message.senderId) : undefined;
-              const senderUsername = message.senderUsername || undefined;
+              const senderUsername = message.senderUsername ? String(message.senderUsername) : undefined;
               const messageDate = message.date || new Date();
+
+              // Log message details for debugging
+              console.log(`[Telegram Collector] Processing message ${message.id}: text="${messageText.substring(0, 50)}", senderUsername="${senderUsername}"`);
 
               // Create message document
               const telegramMessage = new TelegramMessage({
@@ -221,6 +224,13 @@ export async function POST(request: NextRequest) {
                 continue;
               }
               console.error(`[Telegram Collector] Error saving message ${message.id}:`, saveError.message);
+              console.error(`[Telegram Collector] Message data:`, JSON.stringify({
+                id: message.id,
+                message: message.message,
+                text: message.text,
+                senderUsername: message.senderUsername,
+                date: message.date
+              }));
               // Don't throw - continue with other messages
               continue;
             }
