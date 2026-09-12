@@ -6,9 +6,12 @@ import { verifyToken } from '@/lib/auth';
 // PATCH enable/disable a provider
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Await params to get the id
+    const { id } = await params;
+
     // Get the auth token from cookies
     const token = request.cookies.get('auth-token')?.value;
 
@@ -46,9 +49,9 @@ export async function PATCH(
 
     // Find and update the provider
     const provider = await TelegramProvider.findByIdAndUpdate(
-      params.id,
+      id,
       { isActive },
-      { new: true }
+      { returnDocument: 'after' }
     );
 
     if (!provider) {
@@ -76,9 +79,12 @@ export async function PATCH(
 // DELETE a provider
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Await params to get the id
+    const { id } = await params;
+
     // Get the auth token from cookies
     const token = request.cookies.get('auth-token')?.value;
 
@@ -104,7 +110,7 @@ export async function DELETE(
     await connectDB();
 
     // Find and delete the provider
-    const provider = await TelegramProvider.findByIdAndDelete(params.id);
+    const provider = await TelegramProvider.findByIdAndDelete(id);
 
     if (!provider) {
       return NextResponse.json(
