@@ -176,12 +176,23 @@ export async function POST(request: NextRequest) {
           // Store each message
           for (const message of messages) {
             try {
+              // Extract message text safely
+              let messageText = '';
+              if (message.message && typeof message.message === 'string') {
+                messageText = message.message;
+              } else if (message.text && typeof message.text === 'string') {
+                messageText = message.text;
+              } else if (message.message && typeof message.message === 'object') {
+                // Handle media messages with captions
+                messageText = message.message.message || message.message.text || '';
+              }
+
               // Skip messages without text
-              if (!message.message && !message.text) {
+              if (!messageText) {
+                console.log(`[Telegram Collector] Skipping message ${message.id} - no text content`);
                 continue;
               }
 
-              const messageText = message.message || message.text || '';
               const senderId = message.senderId ? Number(message.senderId) : undefined;
               const senderUsername = message.senderUsername || undefined;
               const messageDate = message.date || new Date();
@@ -191,7 +202,7 @@ export async function POST(request: NextRequest) {
                 telegramGroupId: provider.groupId,
                 providerId: provider._id,
                 telegramMessageId: message.id,
-                messageText: messageText,
+                messageText: String(messageText), // Ensure it's a string
                 senderId: senderId,
                 senderUsername: senderUsername,
                 messageDate: messageDate,
@@ -210,7 +221,8 @@ export async function POST(request: NextRequest) {
                 continue;
               }
               console.error(`[Telegram Collector] Error saving message ${message.id}:`, saveError.message);
-              throw saveError; // Re-throw other errors
+              // Don't throw - continue with other messages
+              continue;
             }
           }
 
