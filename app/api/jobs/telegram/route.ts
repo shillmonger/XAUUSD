@@ -77,6 +77,23 @@ export async function POST(request: NextRequest) {
       await client.getMe();
       console.log('[Telegram Collector] Session validated');
 
+      // Get all dialogs to find accessible chats
+      console.log('[Telegram Collector] Fetching user dialogs...');
+      const dialogs = await client.getDialogs({});
+      console.log(`[Telegram Collector] User has access to ${dialogs.length} dialogs`);
+
+      // Create a map of chat IDs to their entities
+      const chatEntityMap = new Map();
+      for (const dialog of dialogs) {
+        if (dialog.entity) {
+          const entity = dialog.entity;
+          const chatId = entity.id?.toString();
+          if (chatId) {
+            chatEntityMap.set(chatId, entity);
+          }
+        }
+      }
+
       // Load active providers
       const activeProviders = await TelegramProvider.find({ 
         isActive: true 
@@ -102,8 +119,14 @@ export async function POST(request: NextRequest) {
         console.log(`[Telegram Collector] Scanning provider: ${provider.groupName} (ID: ${provider.groupId})`);
 
         try {
-          // Try to get messages directly using the group ID
-          console.log(`[Telegram Collector] Attempting to fetch messages for ${provider.groupName}`);
+          // Check if user has access to this chat
+          const chatEntity = chatEntityMap.get(provider.groupId);
+          if (!chatEntity) {
+            console.log(`[Telegram Collector] User does not have access to ${provider.groupName}, skipping`);
+            continue;
+          }
+
+          console.log(`[Telegram Collector] User has access to ${provider.groupName}, entity type: ${chatEntity.className}`);
           
           const lastProcessedId = provider.lastProcessedMessageId;
           let messages: any[] = [];
@@ -112,15 +135,7 @@ export async function POST(request: NextRequest) {
             // First time scanning, get most recent message to establish checkpoint
             console.log(`[Telegram Collector] First scan for ${provider.groupName}, fetching latest message`);
             try {
-              // Try as string first
-              let result;
-              try {
-                result = await client.getMessages(provider.groupId, { limit: 1 });
-              } catch (stringError: any) {
-                console.log(`[Telegram Collector] String ID failed, trying as number`);
-                result = await client.getMessages(Number(provider.groupId), { limit: 1 });
-              }
-              
+              const result = await client.getMessages(chatEntity, { limit: 1 });
               console.log(`[Telegram Collector] Got ${result.length} messages for first scan`);
               if (result.length > 0) {
                 // Just update the checkpoint, don't store messages for first scan
@@ -139,14 +154,7 @@ export async function POST(request: NextRequest) {
             // Fetch messages newer than lastProcessedMessageId
             console.log(`[Telegram Collector] Fetching new messages for ${provider.groupName} (last processed: ${lastProcessedId})`);
             try {
-              let result;
-              try {
-                result = await client.getMessages(provider.groupId, { limit: 100 });
-              } catch (stringError: any) {
-                console.log(`[Telegram Collector] String ID failed, trying as number`);
-                result = await client.getMessages(Number(provider.groupId), { limit: 100 });
-              }
-              
+              const result = await client.getMessages(chatEntity, { limit: 100 });
               messages = result.filter((msg: any) => msg.id > lastProcessedId);
               console.log(`[Telegram Collector] New messages for ${provider.groupName}: ${messages.length}`);
             } catch (msgError: any) {
