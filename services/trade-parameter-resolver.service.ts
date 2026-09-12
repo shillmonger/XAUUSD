@@ -344,15 +344,17 @@ export class TradeParameterResolver {
     };
     
     try {
-      // Step 1: Find user's Deriv account
+      // Step 1: Find user's DEMO Deriv account
+      // Phase 5 and Phase 6 only process demo accounts for now
       const derivAccount = await DerivAccount.findOne({
         userId,
+        accountType: 'demo', // Only process demo accounts
         connectionStatus: 'connected'
       });
       
       if (!derivAccount) {
-        result.rejectionReason = 'NO_CONNECTED_DERIV_ACCOUNT';
-        console.log(`[TradeParameterResolver] Rejected: No connected Deriv account`);
+        result.rejectionReason = 'NO_CONNECTED_DEMO_DERIV_ACCOUNT';
+        console.log(`[TradeParameterResolver] Rejected: No connected demo Deriv account`);
         return result;
       }
       

@@ -5,6 +5,7 @@ import User from '@/models/User';
 import DerivAccount from '@/models/DerivAccount';
 import TradeParameters from '@/models/TradeParameters';
 import { TradeParameterResolver } from '@/services/trade-parameter-resolver.service';
+import { UserEligibilityService } from '@/services/user-eligibility.service';
 
 export async function POST(
   request: NextRequest,
@@ -45,8 +46,10 @@ export async function POST(
       );
     }
     
-    // Get all users with connected Deriv accounts with active bot status
+    // Get all DEMO users with connected Deriv accounts with active bot status
+    // Phase 5 and Phase 6 only process demo accounts for now
     const derivAccounts = await DerivAccount.find({
+      accountType: 'demo', // Only process demo accounts
       connectionStatus: 'connected',
       botStatus: 'ACTIVE' // Only process accounts with active bot status
     });
@@ -142,14 +145,30 @@ export async function POST(
       }
     }
     
-    console.log(`[Signal Processing] Completed: ${processedCount} processed, ${eligibleCount} eligible`);
+    console.log(`[Signal Processing] Phase 5 completed: ${processedCount} processed, ${eligibleCount} eligible`);
+    
+    // Phase 6: User Eligibility Check (demo accounts only)
+    console.log(`[Signal Processing] Starting Phase 6 eligibility check`);
+    const eligibilityService = new UserEligibilityService();
+    const eligibilityResult = await eligibilityService.processSignalEligibility(signal);
+    
+    console.log(`[Signal Processing] Phase 6 completed: demoProcessed=${eligibilityResult.demoAccountsProcessed}, realIgnored=${eligibilityResult.realAccountsIgnored}, eligible=${eligibilityResult.eligibleAccounts}, rejected=${eligibilityResult.rejectedAccounts}`);
     
     return NextResponse.json({
       message: 'Signal processing completed',
       signalId: signalId,
-      processedCount,
-      eligibleCount,
-      results,
+      phase5: {
+        processedCount,
+        eligibleCount,
+        results,
+      },
+      phase6: {
+        demoAccountsProcessed: eligibilityResult.demoAccountsProcessed,
+        realAccountsIgnored: eligibilityResult.realAccountsIgnored,
+        eligibleAccounts: eligibilityResult.eligibleAccounts,
+        rejectedAccounts: eligibilityResult.rejectedAccounts,
+        eligibilityResults: eligibilityResult.results,
+      },
     });
     
   } catch (error) {
