@@ -76,19 +76,31 @@ export async function POST(request: NextRequest) {
       const groups = dialogs
         .filter(dialog => {
           // Include groups and channels, exclude users and bots
-          return dialog.entity.className === 'Channel' || 
-                 dialog.entity.className === 'Chat';
+          return dialog.entity && 
+                 (dialog.entity.className === 'Channel' || 
+                  dialog.entity.className === 'Chat');
         })
         .map(dialog => {
           const entity = dialog.entity;
+          if (!entity) return null;
+
+          // Type guard for Channel/Chat entities
+          const isChannel = entity.className === 'Channel';
+          const isChat = entity.className === 'Chat';
+
+          // Safely access properties with optional chaining and type checks
+          const title = isChannel || isChat ? (entity as any).title : undefined;
+          const username = isChannel || isChat ? (entity as any).username : undefined;
+
           return {
             id: entity.id.toString(),
-            name: entity.title || entity.username || 'Unknown',
+            name: title || username || 'Unknown',
             profile_image: '', // Telegram doesn't provide profile images easily via API
-            type: entity.className === 'Channel' ? 'channel' : 'group',
-            username: entity.username || '',
+            type: isChannel ? 'channel' : 'group',
+            username: username || '',
           };
-        });
+        })
+        .filter((group): group is NonNullable<typeof group> => group !== null);
 
       // Update last checked time
       await TelegramConnection.findByIdAndUpdate(
