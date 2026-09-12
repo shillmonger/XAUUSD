@@ -195,10 +195,24 @@ export async function POST(request: NextRequest) {
 
               const senderId = message.senderId ? Number(message.senderId) : undefined;
               const senderUsername = message.senderUsername ? String(message.senderUsername) : undefined;
-              const messageDate = message.date || new Date();
+              
+              // Convert Unix timestamp to Date object
+              let messageDate = new Date();
+              if (message.date) {
+                if (typeof message.date === 'number') {
+                  // Unix timestamp
+                  messageDate = new Date(message.date * 1000);
+                } else if (message.date instanceof Date) {
+                  // Already a Date object
+                  messageDate = message.date;
+                } else if (typeof message.date === 'string') {
+                  // Date string
+                  messageDate = new Date(message.date);
+                }
+              }
 
               // Log message details for debugging
-              console.log(`[Telegram Collector] Processing message ${message.id}: text="${messageText.substring(0, 50)}", senderUsername="${senderUsername}"`);
+              console.log(`[Telegram Collector] Processing message ${message.id}: text="${messageText.substring(0, 50)}", senderUsername="${senderUsername || 'N/A'}", date="${messageDate.toISOString()}"`);
 
               // Create message document
               const telegramMessage = new TelegramMessage({
