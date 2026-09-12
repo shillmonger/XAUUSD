@@ -214,6 +214,30 @@ export async function POST(request: NextRequest) {
               // Log message details for debugging
               console.log(`[Telegram Collector] Processing message ${message.id}: text="${messageText.substring(0, 50)}", senderUsername="${senderUsername || 'N/A'}", date="${messageDate.toISOString()}"`);
 
+              // Safely serialize raw message
+              let rawMessageSafe;
+              try {
+                rawMessageSafe = JSON.stringify(message, (key, value) => {
+                  // Remove circular references and non-serializable objects
+                  if (typeof value === 'object' && value !== null) {
+                    if (value.constructor && value.constructor.name === 'Buffer') {
+                      return '[Buffer]';
+                    }
+                    if (value.constructor && value.constructor.name === 'ArrayBuffer') {
+                      return '[ArrayBuffer]';
+                    }
+                  }
+                  return value;
+                });
+              } catch (jsonError) {
+                // If all else fails, store minimal info
+                rawMessageSafe = JSON.stringify({
+                  id: message.id,
+                  text: messageText,
+                  date: messageDate
+                });
+              }
+
               // Create message document
               const telegramMessage = new TelegramMessage({
                 telegramGroupId: provider.groupId,
@@ -223,7 +247,7 @@ export async function POST(request: NextRequest) {
                 senderId: senderId,
                 senderUsername: senderUsername,
                 messageDate: messageDate,
-                rawMessage: message,
+                rawMessage: rawMessageSafe,
               });
 
               // Try to save, handle duplicate key errors

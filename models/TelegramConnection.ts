@@ -24,7 +24,6 @@ const TelegramConnectionSchema: Schema<ITelegramConnection> = new Schema(
     telegramUserId: {
       type: String,
       required: [true, 'Telegram User ID is required'],
-      unique: true,
     },
     username: {
       type: String,
@@ -59,7 +58,7 @@ const TelegramConnectionSchema: Schema<ITelegramConnection> = new Schema(
 // Index for quick status lookups
 TelegramConnectionSchema.index({ status: 1 });
 // Unique index on telegramUserId
-TelegramConnectionSchema.index({ telegramUserId: 1 }, { unique: true });
+TelegramConnectionSchema.index({ telegramUserId: 1 });
 
 const TelegramConnection: Model<ITelegramConnection> = mongoose.models.TelegramConnection || mongoose.model<ITelegramConnection>('TelegramConnection', TelegramConnectionSchema);
 

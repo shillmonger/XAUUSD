@@ -45,7 +45,7 @@ const TelegramMessageSchema: Schema<ITelegramMessage> = new Schema(
     },
     rawMessage: {
       type: Schema.Types.Mixed,
-      required: [true, 'Raw message data is required'],
+      required: false,
     },
     collectedAt: {
       type: Date,

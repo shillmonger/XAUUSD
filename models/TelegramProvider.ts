@@ -18,7 +18,6 @@ const TelegramProviderSchema: Schema<ITelegramProvider> = new Schema(
     groupId: {
       type: String,
       required: [true, 'Group ID is required'],
-      unique: true,
     },
     groupName: {
       type: String,
@@ -51,7 +50,7 @@ const TelegramProviderSchema: Schema<ITelegramProvider> = new Schema(
 );
 
 // Unique index on groupId to prevent duplicates
-TelegramProviderSchema.index({ groupId: 1 }, { unique: true });
+TelegramProviderSchema.index({ groupId: 1 });
 // Index for active providers lookup
 TelegramProviderSchema.index({ isActive: 1 });
 
