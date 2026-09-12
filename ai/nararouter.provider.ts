@@ -50,7 +50,7 @@ export class NaraRouterProvider implements AIProvider {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${this.apiKey}`
           },
-          timeout: 30000 // 30 second timeout
+          timeout: 120000 // 120 second timeout (AI models can be slow)
         }
       );
 
