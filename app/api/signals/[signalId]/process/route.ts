@@ -67,7 +67,7 @@ export async function POST(
     
     // Process each user's account
     for (const derivAccount of derivAccounts) {
-      const userId = derivAccount.userId;
+      const userId = derivAccount.userId.toString();
       
       console.log(`[Signal Processing] Processing for user ${userId}, account ${derivAccount.derivAccountId}`);
       
