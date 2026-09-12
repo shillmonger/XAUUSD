@@ -9,7 +9,8 @@
     "lint": "eslint",
     "reprocess:messages": "tsx scripts/reprocess-telegram-messages.ts",
     "test": "jest",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "test:demo-trade": "tsx scripts/test-demo-trade.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
@@ -46,6 +47,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/ws": "^8.18.1",
     "eslint": "^9",
     "eslint-config-next": "16.3.2",
     "jest": "^29.7.0",

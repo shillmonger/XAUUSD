@@ -1,0 +1,186 @@
+/**
+ * Deriv Symbol Mapper Service
+ * Verifies and maps internal symbols to Deriv underlying symbols
+ * 
+ * This service:
+ * - Queries Deriv active_symbols to verify correct underlying symbols
+ * - Maps internal XAUUSD to actual Deriv underlying symbol
+ * - Caches symbol mappings for performance
+ * - Ensures we use the correct current Deriv API field names
+ */
+
+import { createDerivApiClient, DerivApiClient } from './deriv-api-client.service';
+
+export interface SymbolMapping {
+  internalSymbol: string;
+  derivSymbol: string;
+  underlyingSymbolName: string;
+  market: string;
+  verified: boolean;
+  verifiedAt: Date;
+}
+
+/**
+ * Deriv Symbol Mapper
+ */
+export class DerivSymbolMapper {
+  private apiClient: DerivApiClient | null = null;
+  private symbolCache: Map<string, SymbolMapping> = new Map();
+  private cacheExpiry = 3600000; // 1 hour in milliseconds
+
+  /**
+   * Initialize the symbol mapper with an API client
+   */
+  private async initializeApiClient(accessToken: string, accountType: 'demo' | 'real'): Promise<void> {
+    this.apiClient = await createDerivApiClient(accessToken, accountType);
+  }
+
+  /**
+   * Get active symbols from Deriv
+   */
+  private async getActiveSymbols(accessToken: string, accountType: 'demo' | 'real'): Promise<any[]> {
+    if (!this.apiClient) {
+      await this.initializeApiClient(accessToken, accountType);
+    }
+
+    return await this.apiClient!.getActiveSymbols();
+  }
+
+  /**
+   * Find the correct Deriv underlying symbol for an internal symbol
+   */
+  private findDerivSymbol(activeSymbols: any[], internalSymbol: string): string | null {
+    // Common patterns for XAUUSD in Deriv
+    const xauPatterns = [
+      'frxXAUUSD',  // Most common pattern
+      'XAUUSD',     // Direct symbol
+      'GOLD',       // Alternative name
+      'frxGOLD',    // Pattern with prefix
+    ];
+
+    // First, try exact match
+    const exactMatch = activeSymbols.find(s => 
+      s.underlying_symbol === internalSymbol || 
+      s.underlying_symbol_name === internalSymbol
+    );
+
+    if (exactMatch) {
+      return exactMatch.underlying_symbol;
+    }
+
+    // For XAUUSD, try common patterns
+    if (internalSymbol === 'XAUUSD') {
+      for (const pattern of xauPatterns) {
+        const match = activeSymbols.find(s => 
+          s.underlying_symbol === pattern ||
+          s.underlying_symbol.toLowerCase().includes('xau') ||
+          s.underlying_symbol_name.toLowerCase().includes('gold') ||
+          s.underlying_symbol_name.toLowerCase().includes('xau')
+        );
+
+        if (match) {
+          return match.underlying_symbol;
+        }
+      }
+    }
+
+    // For other symbols, try common forex pattern
+    const forexPattern = `frx${internalSymbol}`;
+    const forexMatch = activeSymbols.find(s => s.underlying_symbol === forexPattern);
+    if (forexMatch) {
+      return forexMatch.underlying_symbol;
+    }
+
+    return null;
+  }
+
+  /**
+   * Verify and cache symbol mapping
+   */
+  async verifySymbolMapping(
+    internalSymbol: string,
+    accessToken: string,
+    accountType: 'demo' | 'real'
+  ): Promise<SymbolMapping> {
+    // Check cache first
+    const cached = this.symbolCache.get(internalSymbol);
+    if (cached && Date.now() - cached.verifiedAt.getTime() < this.cacheExpiry) {
+      console.log(`[DerivSymbolMapper] Using cached mapping for ${internalSymbol}`);
+      return cached;
+    }
+
+    console.log(`[DerivSymbolMapper] Verifying symbol mapping for ${internalSymbol}`);
+
+    try {
+      // Get active symbols from Deriv
+      const activeSymbols = await this.getActiveSymbols(accessToken, accountType);
+      console.log(`[DerivSymbolMapper] Retrieved ${activeSymbols.length} active symbols`);
+
+      // Find the correct Deriv symbol
+      const derivSymbol = this.findDerivSymbol(activeSymbols, internalSymbol);
+
+      if (!derivSymbol) {
+        throw new Error(`No Deriv symbol found for ${internalSymbol}`);
+      }
+
+      // Get symbol details
+      const symbolDetails = activeSymbols.find(s => s.underlying_symbol === derivSymbol);
+
+      // Create mapping
+      const mapping: SymbolMapping = {
+        internalSymbol,
+        derivSymbol,
+        underlyingSymbolName: symbolDetails?.underlying_symbol_name || derivSymbol,
+        market: symbolDetails?.market || 'unknown',
+        verified: true,
+        verifiedAt: new Date()
+      };
+
+      // Cache the mapping
+      this.symbolCache.set(internalSymbol, mapping);
+
+      console.log(`[DerivSymbolMapper] Verified mapping: ${internalSymbol} -> ${derivSymbol} (${mapping.underlyingSymbolName})`);
+
+      return mapping;
+
+    } catch (error) {
+      console.error(`[DerivSymbolMapper] Failed to verify symbol mapping:`, error);
+      throw error;
+    } finally {
+      // Clean up API client
+      if (this.apiClient) {
+        this.apiClient.disconnect();
+        this.apiClient = null;
+      }
+    }
+  }
+
+  /**
+   * Get cached mapping without verification
+   */
+  getCachedMapping(internalSymbol: string): SymbolMapping | null {
+    const cached = this.symbolCache.get(internalSymbol);
+    if (cached && Date.now() - cached.verifiedAt.getTime() < this.cacheExpiry) {
+      return cached;
+    }
+    return null;
+  }
+
+  /**
+   * Clear the symbol cache
+   */
+  clearCache(): void {
+    this.symbolCache.clear();
+    console.log(`[DerivSymbolMapper] Symbol cache cleared`);
+  }
+
+  /**
+   * Get all cached mappings
+   */
+  getAllCachedMappings(): SymbolMapping[] {
+    return Array.from(this.symbolCache.values());
+  }
+}
+
+// Export singleton instance
+export const derivSymbolMapper = new DerivSymbolMapper();

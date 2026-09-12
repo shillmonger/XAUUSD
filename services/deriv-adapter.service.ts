@@ -1,0 +1,371 @@
+/**
+ * Deriv Adapter Service (Phase 7)
+ * Translates internal trade format to Deriv-specific API calls and executes trades
+ * 
+ * This service:
+ * - Isolates Deriv-specific logic from the rest of the application
+ * - Translates internal trade format to Deriv API format
+ * - Executes proposal → buy workflow
+ * - Applies SL/TP via contract_update if required
+ * - Returns normalized execution results
+ * - Stores execution results in CopyTrade model
+ * - Enforces demo account safety
+ * - Prevents duplicate execution
+ * - Reuses existing encrypted token authentication
+ */
+
+import DerivAccount from '@/models/DerivAccount';
+import CopyTrade from '@/models/CopyTrade';
+import { decrypt } from '@/lib/encryption';
+import { createDerivApiClient, DerivApiClient } from './deriv-api-client.service';
+import { derivSymbolMapper, SymbolMapping } from './deriv-symbol-mapper.service';
+import { ISignal } from '@/models/Signal';
+import { ITradeParameters } from '@/models/TradeParameters';
+import { IUserEligibility } from '@/models/UserEligibility';
+
+export interface InternalTradeRequest {
+  signalId: string;
+  userId: string;
+  derivAccountId: string;
+  
+  // Trade parameters from Phase 5
+  symbol: string;
+  direction: 'BUY' | 'SELL';
+  orderType: 'MARKET' | 'LIMIT' | 'STOP';
+  entry?: number;
+  stopLoss: number;
+  takeProfit: number;
+  lotSize: number;
+}
+
+export interface ExecutionResult {
+  success: boolean;
+  broker: 'deriv';
+  derivAccountId: string;
+  
+  // Broker identifiers
+  brokerContractId?: string;
+  brokerTransactionId?: string;
+  
+  // Execution details
+  executionPrice?: number;
+  status: 'OPEN' | 'FAILED' | 'PENDING';
+  
+  // Error details
+  error?: string;
+  errorCode?: string;
+  
+  // Raw reference data for debugging
+  rawReferenceData?: any;
+}
+
+/**
+ * Deriv Adapter Service
+ */
+export class DerivAdapter {
+  private apiClient: DerivApiClient | null = null;
+  private symbolMappingCache: Map<string, SymbolMapping> = new Map();
+
+  /**
+   * Get Deriv underlying symbol for internal symbol using the symbol mapper
+   */
+  private async getDerivSymbol(internalSymbol: string, accessToken: string, accountType: 'demo' | 'real'): Promise<string> {
+    // Check cache first
+    const cached = this.symbolMappingCache.get(internalSymbol);
+    if (cached) {
+      console.log(`[DerivAdapter] Using cached symbol mapping: ${internalSymbol} -> ${cached.derivSymbol}`);
+      return cached.derivSymbol;
+    }
+
+    // Verify symbol mapping using the symbol mapper
+    const mapping = await derivSymbolMapper.verifySymbolMapping(internalSymbol, accessToken, accountType);
+    
+    // Cache the mapping
+    this.symbolMappingCache.set(internalSymbol, mapping);
+    
+    return mapping.derivSymbol;
+  }
+
+  /**
+   * Translate internal direction to Deriv contract type
+   * This is a simplified mapping - actual contract types depend on the product
+   */
+  private translateDirection(direction: 'BUY' | 'SELL'): string {
+    // This is a placeholder - actual contract types depend on the specific Deriv product
+    // We'll need to determine the correct contract type based on the available contracts
+    return direction === 'BUY' ? 'CALL' : 'PUT';
+  }
+
+  /**
+   * Translate internal lot size to Deriv stake/amount
+   * Deriv uses "stake" or "payout" as the basis for contract size
+   * This is a simplified translation - may need adjustment based on the product
+   */
+  private translateLotSize(lotSize: number): number {
+    // For now, we assume lot size maps directly to stake
+    // This may need to be adjusted based on the specific Deriv product
+    return lotSize;
+  }
+
+  /**
+   * Check if this is a demo account (safety check)
+   */
+  private async verifyDemoAccount(derivAccountId: string): Promise<boolean> {
+    const derivAccount = await DerivAccount.findOne({ derivAccountId });
+    if (!derivAccount) {
+      throw new Error(`Deriv account not found: ${derivAccountId}`);
+    }
+
+    if (derivAccount.accountType !== 'demo') {
+      throw new Error('EXECUTION_BLOCKED_REAL_ACCOUNT_NOT_SUPPORTED');
+    }
+
+    if (derivAccount.connectionStatus !== 'connected') {
+      throw new Error('ACCOUNT_NOT_CONNECTED');
+    }
+
+    if (derivAccount.botStatus !== 'ACTIVE') {
+      throw new Error('BOT_NOT_ACTIVE');
+    }
+
+    return true;
+  }
+
+  /**
+   * Check for duplicate execution (idempotency)
+   */
+  private async checkDuplicateExecution(
+    signalId: string,
+    userId: string,
+    derivAccountId: string
+  ): Promise<boolean> {
+    const existingTrade = await CopyTrade.findOne({
+      signalId,
+      userId,
+      derivAccountId,
+      status: { $in: ['PENDING', 'OPEN'] }
+    });
+
+    return existingTrade !== null;
+  }
+
+  /**
+   * Initialize API client with user's access token
+   */
+  private async initializeApiClient(derivAccountId: string, accessToken: string): Promise<void> {
+    const derivAccount = await DerivAccount.findOne({ derivAccountId });
+    if (!derivAccount) {
+      throw new Error(`Deriv account not found: ${derivAccountId}`);
+    }
+
+    // Create API client
+    this.apiClient = await createDerivApiClient(accessToken, derivAccount.accountType);
+  }
+
+  /**
+   * Execute trade using Deriv API
+   */
+  async executeTrade(request: InternalTradeRequest): Promise<ExecutionResult> {
+    console.log(`[DerivAdapter] Executing trade for signal ${request.signalId}, user ${request.userId}`);
+
+    const result: ExecutionResult = {
+      success: false,
+      broker: 'deriv',
+      derivAccountId: request.derivAccountId,
+      status: 'FAILED'
+    };
+
+    try {
+      // Step 1: Get Deriv account and access token
+      const derivAccount = await DerivAccount.findOne({ derivAccountId: request.derivAccountId });
+      if (!derivAccount) {
+        throw new Error(`Deriv account not found: ${request.derivAccountId}`);
+      }
+
+      // Check if token is expired
+      if (derivAccount.tokenExpiresAt < new Date()) {
+        throw new Error('ACCESS_TOKEN_EXPIRED');
+      }
+
+      // Decrypt the access token
+      let accessToken: string;
+      try {
+        accessToken = decrypt(derivAccount.accessTokenEncrypted);
+      } catch (error) {
+        throw new Error('TOKEN_DECRYPTION_FAILED');
+      }
+
+      // Step 2: Verify demo account (safety check)
+      await this.verifyDemoAccount(request.derivAccountId);
+      console.log(`[DerivAdapter] Demo account verified`);
+
+      // Step 3: Check for duplicate execution (idempotency)
+      const isDuplicate = await this.checkDuplicateExecution(
+        request.signalId,
+        request.userId,
+        request.derivAccountId
+      );
+
+      if (isDuplicate) {
+        result.error = 'DUPLICATE_EXECUTION';
+        result.errorCode = 'DUPLICATE_EXECUTION';
+        console.log(`[DerivAdapter] Duplicate execution detected, skipping`);
+        return result;
+      }
+
+      // Step 4: Create pending copy trade record
+      const copyTrade = new CopyTrade({
+        signalId: request.signalId,
+        userId: request.userId,
+        derivAccountId: request.derivAccountId,
+        broker: 'deriv',
+        accountType: 'demo',
+        symbol: request.symbol,
+        direction: request.direction,
+        orderType: request.orderType,
+        requestedEntry: request.entry,
+        stopLoss: request.stopLoss,
+        takeProfit: request.takeProfit,
+        lotSize: request.lotSize,
+        status: 'PENDING',
+        processedAt: new Date()
+      });
+
+      await copyTrade.save();
+      console.log(`[DerivAdapter] Pending copy trade record created`);
+
+      // Step 5: Initialize API client
+      await this.initializeApiClient(request.derivAccountId, accessToken);
+      console.log(`[DerivAdapter] API client initialized`);
+
+      // Step 6: Translate internal trade to Deriv format
+      const derivSymbol = await this.getDerivSymbol(request.symbol, accessToken, derivAccount.accountType);
+      const contractType = this.translateDirection(request.direction);
+      const stake = this.translateLotSize(request.lotSize);
+
+      console.log(`[DerivAdapter] Translated trade: ${request.symbol} -> ${derivSymbol}, ${request.direction} -> ${contractType}`);
+
+      // Step 7: Get proposal from Deriv
+      // Note: This is a simplified proposal request
+      // The actual parameters depend on the specific Deriv product/contract type
+      const proposalRequest = {
+        underlying_symbol: derivSymbol,
+        contract_type: contractType,
+        amount: stake,
+        basis: 'stake' as const,
+        currency: 'USD',
+        // Additional parameters would be added here based on the specific product
+      };
+
+      console.log(`[DerivAdapter] Requesting proposal`);
+      const proposal = await this.apiClient!.getProposal(proposalRequest);
+      console.log(`[DerivAdapter] Proposal received: ${proposal.id}`);
+
+      // Step 8: Buy the contract
+      const buyRequest = {
+        proposal_id: proposal.id,
+        price: proposal.ask_price
+      };
+
+      console.log(`[DerivAdapter] Buying contract`);
+      const buyResponse = await this.apiClient!.buy(buyRequest);
+      console.log(`[DerivAdapter] Contract bought: ${buyResponse.contract_id}`);
+
+      // Step 9: Apply SL/TP if supported by the product
+      // This depends on whether the Deriv product supports post-purchase SL/TP updates
+      try {
+        const updateRequest = {
+          contract_id: buyResponse.contract_id,
+          stop_loss: request.stopLoss,
+          take_profit: request.takeProfit
+        };
+
+        console.log(`[DerivAdapter] Applying SL/TP`);
+        await this.apiClient!.updateContract(updateRequest);
+        console.log(`[DerivAdapter] SL/TP applied`);
+      } catch (error) {
+        // SL/TP update might not be supported for all contract types
+        // Log but don't fail the trade if SL/TP update fails
+        console.warn(`[DerivAdapter] SL/TP update failed (may not be supported):`, error);
+      }
+
+      // Step 10: Update copy trade record with success
+      copyTrade.brokerContractId = buyResponse.contract_id;
+      copyTrade.brokerTransactionId = buyResponse.transaction_id.toString();
+      copyTrade.executionPrice = buyResponse.buy_price;
+      copyTrade.status = 'OPEN';
+      copyTrade.openedAt = new Date();
+      await copyTrade.save();
+
+      // Step 11: Return success result
+      result.success = true;
+      result.brokerContractId = buyResponse.contract_id;
+      result.brokerTransactionId = buyResponse.transaction_id.toString();
+      result.executionPrice = buyResponse.buy_price;
+      result.status = 'OPEN';
+      result.rawReferenceData = {
+        proposal,
+        buy: buyResponse
+      };
+
+      console.log(`[DerivAdapter] Trade executed successfully`);
+      return result;
+
+    } catch (error) {
+      console.error(`[DerivAdapter] Trade execution failed:`, error);
+
+      // Update copy trade record with failure
+      try {
+        const copyTrade = await CopyTrade.findOne({
+          signalId: request.signalId,
+          userId: request.userId,
+          derivAccountId: request.derivAccountId,
+          status: 'PENDING'
+        });
+
+        if (copyTrade) {
+          copyTrade.status = 'FAILED';
+          copyTrade.failureReason = error instanceof Error ? error.message : 'UNKNOWN_ERROR';
+          await copyTrade.save();
+        }
+      } catch (updateError) {
+        console.error(`[DerivAdapter] Failed to update copy trade record:`, updateError);
+      }
+
+      result.error = error instanceof Error ? error.message : 'UNKNOWN_ERROR';
+      result.errorCode = error instanceof Error ? error.name : 'UNKNOWN_ERROR';
+      return result;
+    } finally {
+      // Clean up API client
+      if (this.apiClient) {
+        this.apiClient.disconnect();
+        this.apiClient = null;
+      }
+    }
+  }
+
+  /**
+   * Build internal trade request from Phase 5/6 data
+   */
+  static buildTradeRequest(
+    signal: ISignal,
+    tradeParameters: ITradeParameters,
+    userEligibility: IUserEligibility
+  ): InternalTradeRequest {
+    return {
+      signalId: signal._id.toString(),
+      userId: userEligibility.userId.toString(),
+      derivAccountId: userEligibility.derivAccountId,
+      symbol: signal.symbol,
+      direction: signal.direction,
+      orderType: signal.orderType,
+      entry: signal.entry,
+      stopLoss: tradeParameters.finalStopLoss!,
+      takeProfit: tradeParameters.finalTakeProfit!,
+      lotSize: tradeParameters.finalLotSize!
+    };
+  }
+}
+
+// Export singleton instance
+export const derivAdapter = new DerivAdapter();

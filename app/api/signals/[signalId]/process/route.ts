@@ -6,6 +6,7 @@ import DerivAccount from '@/models/DerivAccount';
 import TradeParameters from '@/models/TradeParameters';
 import { TradeParameterResolver } from '@/services/trade-parameter-resolver.service';
 import { UserEligibilityService } from '@/services/user-eligibility.service';
+import { phase8ExecutionEngine } from '@/services/phase8-execution-engine.service';
 
 export async function POST(
   request: NextRequest,
@@ -154,6 +155,28 @@ export async function POST(
     
     console.log(`[Signal Processing] Phase 6 completed: demoProcessed=${eligibilityResult.demoAccountsProcessed}, realIgnored=${eligibilityResult.realAccountsIgnored}, eligible=${eligibilityResult.eligibleAccounts}, rejected=${eligibilityResult.rejectedAccounts}`);
     
+    // Phase 8: Execute trades for eligible demo accounts
+    console.log(`[Signal Processing] Starting Phase 8 execution`);
+    let phase8Result = null;
+    
+    if (eligibilityResult.eligibleAccounts > 0) {
+      try {
+        phase8Result = await phase8ExecutionEngine.processSignalExecution(signalId);
+        console.log(`[Signal Processing] Phase 8 completed: total=${phase8Result.totalEligibleAccounts}, success=${phase8Result.successfulExecutions}, failed=${phase8Result.failedExecutions}, skipped=${phase8Result.skippedExecutions}`);
+      } catch (phase8Error) {
+        console.error(`[Signal Processing] Phase 8 execution failed:`, phase8Error);
+        phase8Result = {
+          error: phase8Error instanceof Error ? phase8Error.message : 'UNKNOWN_ERROR',
+          totalEligibleAccounts: eligibilityResult.eligibleAccounts,
+          successfulExecutions: 0,
+          failedExecutions: eligibilityResult.eligibleAccounts,
+          skippedExecutions: 0,
+        };
+      }
+    } else {
+      console.log(`[Signal Processing] Phase 8 skipped: no eligible accounts`);
+    }
+    
     return NextResponse.json({
       message: 'Signal processing completed',
       signalId: signalId,
@@ -169,6 +192,13 @@ export async function POST(
         rejectedAccounts: eligibilityResult.rejectedAccounts,
         eligibilityResults: eligibilityResult.results,
       },
+      phase8: phase8Result ? {
+        totalEligibleAccounts: phase8Result.totalEligibleAccounts,
+        successfulExecutions: phase8Result.successfulExecutions,
+        failedExecutions: phase8Result.failedExecutions,
+        skippedExecutions: phase8Result.skippedExecutions,
+        executionResults: phase8Result.executionResults,
+      } : null,
     });
     
   } catch (error) {
