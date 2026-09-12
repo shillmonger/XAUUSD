@@ -296,6 +296,17 @@ export function extractEntryFromRange(text: string, direction: 'BUY' | 'SELL' | 
     }
   }
   
+  // Look for patterns like "BUY LIMIT 4072:4071" or "SELL LIMIT 4060:4065" (colon separated range)
+  const colonSeparatedRangePattern = new RegExp(`${direction}\\s+(?:LIMIT|LIMET|LIMITT)\\s*(-?\\d+\\.?\\d*):(-?\\d+\\.?\\d*)`, 'i');
+  const colonSeparatedRangeMatch = upperText.match(colonSeparatedRangePattern);
+  
+  if (colonSeparatedRangeMatch) {
+    const firstPrice = parseFloat(colonSeparatedRangeMatch[1]);
+    if (!isNaN(firstPrice)) {
+      return firstPrice;
+    }
+  }
+  
   return null;
 }
 
@@ -417,8 +428,8 @@ export function extractTakeProfits(text: string): number[] {
   
   // Regex to find TP patterns followed by numbers
   // Matches: TP 4091, TP1 4095, TP2 4085, TAKE PROFIT 4091, etc.
-  // Also handles TP1:, TP2:, etc.
-  const tpRegex = /(?:TP\d*|TAKE\s+PROFIT)[:\s]*(-?\d+\.?\d*)/gi;
+  // Also handles TP1:, TP2:, etc. and TP1 :4080 (space before colon)
+  const tpRegex = /(?:TP\d*|TAKE\s+PROFIT)\s*[:\s]*(-?\d+\.?\d*)/gi;
   
   let match;
   while ((match = tpRegex.exec(normalizedText)) !== null) {
@@ -432,7 +443,7 @@ export function extractTakeProfits(text: string): number[] {
   
   // Additional regex patterns for other TP formats
   // Matches: TGT 4091, TGT1 4095, TARGET 4091, P1 4095, etc.
-  const tgtRegex = /(?:TGT\d*|TARGET\d*|PROFIT\d*|P\d*)[:\s]*(-?\d+\.?\d*)/gi;
+  const tgtRegex = /(?:TGT\d*|TARGET\d*|PROFIT\d*|P\d*)\s*[:\s]*(-?\d+\.?\d*)/gi;
   while ((match = tgtRegex.exec(normalizedText)) !== null) {
     const numberStr = match[1];
     const number = parseFloat(numberStr);
@@ -448,7 +459,7 @@ export function extractTakeProfits(text: string): number[] {
   for (const line of lines) {
     const trimmedLine = line.trim();
     // Check if line starts with TP-like pattern
-    if (/^(TP|TGT|TARGET|PROFIT|P)\d*[:\s]*/.test(trimmedLine)) {
+    if (/^(TP|TGT|TARGET|PROFIT|P)\d*\s*[:\s]*/.test(trimmedLine)) {
       const numberMatch = trimmedLine.match(/(-?\d+\.?\d*)/);
       if (numberMatch) {
         const number = parseFloat(numberMatch[1]);

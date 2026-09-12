@@ -4,6 +4,7 @@
  * and processes them through the signal intelligence engine
  * 
  * Usage: MONGODB_URI="your_connection_string" npm run reprocess:messages
+ * Or set MONGODB_URI in .env.local and run: npm run reprocess:messages
  */
 
 import mongoose from 'mongoose';
@@ -13,8 +14,27 @@ import Signal from '../models/Signal';
 import TelegramProvider from '../models/TelegramProvider';
 import { SignalIntelligenceService } from '../ai/signal-ai.service';
 
-// Direct database connection to avoid env variable issues
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://codelab042:codelab042@chidera-shard-00-00.2ffbe.mongodb.net:27017,chidera-shard-00-01.2ffbe.mongodb.net:27017,chidera-shard-00-02.2ffbe.mongodb.net:27017/my-trading-bot?ssl=true&replicaSet=atlas-y7zolq-shard-0&authSource=admin&appName=Chidera';
+// Load environment variables from .env.local
+import 'dotenv/config';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { config } from 'dotenv';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load .env.local
+config({ path: path.join(__dirname, '../.env.local') });
+
+// Get MongoDB URI from environment variables
+const MONGODB_URI = process.env.MONGODB_URI;
+
+if (!MONGODB_URI) {
+  console.error('[Reprocess Script] ERROR: MONGODB_URI environment variable is not set');
+  console.error('[Reprocess Script] Please set MONGODB_URI in your .env.local file or pass it as an environment variable');
+  console.error('[Reprocess Script] Example: MONGODB_URI="mongodb://..." npm run reprocess:messages');
+  process.exit(1);
+}
 
 async function connectDB() {
   if (mongoose.connection.readyState === 1) {

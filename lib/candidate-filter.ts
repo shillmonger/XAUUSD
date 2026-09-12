@@ -36,6 +36,8 @@ const CANDIDATE_KEYWORDS = [
   'STOP',
   'BUY @',
   'SELL @',
+  'LIMET', // Common typo
+  'LIMITT', // Common typo
   
   // Trading components
   'ENTRY',
@@ -147,11 +149,13 @@ export function hasStrongTradingIndicators(messageText: string): boolean {
     'TARGET',
     'STOP:',
     'ENTRY:',
+    'LIMET', // Common typo
     // Direction with numbers (regex patterns)
     /BUY\s*\d+/,
     /SELL\s*\d+/,
     // Pattern with price ranges
     /\d+-\d+/, // e.g., 4050-4055
+    /\d+:\d+/, // e.g., 4072:4071
   ];
 
   for (const indicator of strongIndicators) {

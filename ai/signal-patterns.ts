@@ -100,6 +100,8 @@ export const ORDER_TYPE_PATTERNS = {
     'SELL @',
     'BUY@',
     'SELL@',
+    'LIMET', // Common typo
+    'LIMITT', // Common typo
   ],
   STOP: [
     'BUY STOP',
