@@ -45,10 +45,10 @@ export async function POST(
       );
     }
     
-    // Get all users with connected Deriv accounts
+    // Get all users with connected Deriv accounts with active bot status
     const derivAccounts = await DerivAccount.find({
       connectionStatus: 'connected',
-      botStatus: 'ACTIVE' // Only process for users with active bot
+      botStatus: 'ACTIVE' // Only process accounts with active bot status
     });
     
     console.log(`[Signal Processing] Found ${derivAccounts.length} eligible user accounts`);
