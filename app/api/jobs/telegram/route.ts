@@ -348,6 +348,14 @@ export async function POST(request: NextRequest) {
                       
                       await signal.save();
                       console.log(`[Signal Validator] Valid signal stored for message ${message.id}`);
+                      
+                      // Phase 5: Trade Parameter Resolution
+                      // Trigger asynchronous processing for eligible users
+                      fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/signals/${signal._id}/process`, {
+                        method: 'POST',
+                      }).catch(err => {
+                        console.error(`[Signal Processing] Failed to trigger Phase 5 processing:`, err);
+                      });
                     } else {
                       console.log(`[Signal Validator] Signal already exists for message ${message.id}`);
                     }
