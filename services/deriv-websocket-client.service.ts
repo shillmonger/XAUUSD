@@ -74,18 +74,26 @@ export class DerivWebSocketClient {
     return new Promise((resolve, reject) => {
       try {
         const endpoint = this.getWebSocketEndpoint();
-        console.log(`[DerivWebSocketClient] Connecting to ${endpoint} for ${this.config.accountType} account`);
+        console.log('[DerivWebSocketClient] Connection details:', {
+          endpoint: endpoint,
+          account_type: this.config.accountType,
+          app_id: this.config.appId,
+          token_length: this.config.accessToken.length,
+          token_prefix: this.config.accessToken.substring(0, 10) + '...'
+        });
 
         this.ws = new WebSocket(endpoint);
 
         this.ws.on('open', () => {
-          console.log('[DerivWebSocketClient] WebSocket connected');
+          console.log('[DerivWebSocketClient] WebSocket connected successfully');
           this.reconnectAttempts = 0;
           
           // Authorize using the access token
           this.authorize().then(() => {
+            console.log('[DerivWebSocketClient] Authorization successful');
             resolve();
           }).catch((error) => {
+            console.error('[DerivWebSocketClient] Authorization failed:', error);
             reject(error);
           });
         });
@@ -100,7 +108,12 @@ export class DerivWebSocketClient {
         });
 
         this.ws.on('error', (error: Error) => {
-          console.error('[DerivWebSocketClient] WebSocket error:', error);
+          console.error('[DerivWebSocketClient] WebSocket error details:', {
+            error_message: error.message,
+            error_name: error.name,
+            error_stack: error.stack,
+            error_type: typeof error
+          });
           this.notifyErrorHandlers(error);
           reject(error);
         });
@@ -127,6 +140,14 @@ export class DerivWebSocketClient {
         authorize: this.config.accessToken,
         req_id: reqId
       };
+
+      console.log('[DerivWebSocketClient] Authorization request details:', {
+        req_id: reqId,
+        account_type: this.config.accountType,
+        app_id: this.config.appId,
+        token_prefix: this.config.accessToken.substring(0, 10) + '...',
+        token_length: this.config.accessToken.length
+      });
 
       this.setupRequestPromise(reqId, resolve, reject, 10000);
       this.send(request);
@@ -180,7 +201,19 @@ export class DerivWebSocketClient {
    * Handle incoming message from WebSocket
    */
   private handleMessage(message: DerivMessage): void {
-    console.log(`[DerivWebSocketClient] Received:`, message);
+    console.log('[DerivWebSocketClient] Received message details:', {
+      msg_type: message.msg_type,
+      req_id: message.req_id,
+      error: message.error ? {
+        code: message.error.code,
+        message: message.error.message,
+        type: typeof message.error
+      } : null,
+      has_proposal: !!message.proposal,
+      has_buy: !!message.buy,
+      has_contract_update: !!message.contract_update,
+      echo_req: message.echo_req ? 'present' : 'absent'
+    });
 
     // Check if this is a response to a specific request
     if (message.req_id !== undefined && this.requestPromises.has(message.req_id)) {
@@ -190,6 +223,14 @@ export class DerivWebSocketClient {
 
       // Check for error in response
       if (message.error) {
+        console.error('[DerivWebSocketClient] Request error details:', {
+          req_id: message.req_id,
+          error_code: message.error.code,
+          error_message: message.error.message,
+          error_type: typeof message.error,
+          full_error: message.error,
+          msg_type: message.msg_type
+        });
         reject(new Error(message.error.message || 'Deriv API error'));
       } else {
         resolve(message);

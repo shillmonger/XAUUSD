@@ -50,6 +50,9 @@ export class DerivSymbolMapper {
    * Find the correct Deriv underlying symbol for an internal symbol
    */
   private findDerivSymbol(activeSymbols: any[], internalSymbol: string): string | null {
+    console.log('[DerivSymbolMapper] Searching for symbol:', internalSymbol);
+    console.log('[DerivSymbolMapper] Total active symbols:', activeSymbols.length);
+
     // Common patterns for XAUUSD in Deriv
     const xauPatterns = [
       'frxXAUUSD',  // Most common pattern
@@ -65,11 +68,13 @@ export class DerivSymbolMapper {
     );
 
     if (exactMatch) {
+      console.log('[DerivSymbolMapper] Exact match found:', exactMatch.underlying_symbol);
       return exactMatch.underlying_symbol;
     }
 
     // For XAUUSD, try common patterns
     if (internalSymbol === 'XAUUSD') {
+      console.log('[DerivSymbolMapper] Trying XAUUSD patterns:', xauPatterns);
       for (const pattern of xauPatterns) {
         const match = activeSymbols.find(s => 
           s.underlying_symbol === pattern ||
@@ -79,6 +84,7 @@ export class DerivSymbolMapper {
         );
 
         if (match) {
+          console.log('[DerivSymbolMapper] Pattern match found:', match.underlying_symbol, 'from pattern:', pattern);
           return match.underlying_symbol;
         }
       }
@@ -88,8 +94,16 @@ export class DerivSymbolMapper {
     const forexPattern = `frx${internalSymbol}`;
     const forexMatch = activeSymbols.find(s => s.underlying_symbol === forexPattern);
     if (forexMatch) {
+      console.log('[DerivSymbolMapper] Forex pattern match found:', forexMatch.underlying_symbol);
       return forexMatch.underlying_symbol;
     }
+
+    console.log('[DerivSymbolMapper] No match found for:', internalSymbol);
+    console.log('[DerivSymbolMapper] Sample available symbols:', activeSymbols.slice(0, 5).map(s => ({
+      symbol: s.underlying_symbol,
+      name: s.underlying_symbol_name,
+      market: s.market
+    })));
 
     return null;
   }

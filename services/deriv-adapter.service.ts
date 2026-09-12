@@ -312,7 +312,24 @@ export class DerivAdapter {
       return result;
 
     } catch (error) {
-      console.error(`[DerivAdapter] Trade execution failed:`, error);
+      console.error('[DerivAdapter] Trade execution failed with details:', {
+        error_message: error instanceof Error ? error.message : 'UNKNOWN_ERROR',
+        error_name: error instanceof Error ? error.name : 'UNKNOWN_ERROR',
+        error_stack: error instanceof Error ? error.stack : undefined,
+        error_type: typeof error,
+        request_details: {
+          signalId: request.signalId,
+          userId: request.userId,
+          derivAccountId: request.derivAccountId,
+          symbol: request.symbol,
+          direction: request.direction,
+          orderType: request.orderType,
+          entry: request.entry,
+          stopLoss: request.stopLoss,
+          takeProfit: request.takeProfit,
+          lotSize: request.lotSize
+        }
+      });
 
       // Update copy trade record with failure
       try {
@@ -329,7 +346,7 @@ export class DerivAdapter {
           await copyTrade.save();
         }
       } catch (updateError) {
-        console.error(`[DerivAdapter] Failed to update copy trade record:`, updateError);
+        console.error('[DerivAdapter] Failed to update copy trade record:', updateError);
       }
 
       result.error = error instanceof Error ? error.message : 'UNKNOWN_ERROR';

@@ -135,16 +135,47 @@ export class DerivApiClient {
       req_id: Date.now()
     };
 
+    console.log('[DerivApiClient] PROPOSAL REQUEST:', JSON.stringify({
+      ...derivRequest,
+      // Don't log sensitive fields if any
+    }, null, 2));
+
     const response = await this.wsClient.sendAndWait<any>(derivRequest);
     
+    console.log('[DerivApiClient] PROPOSAL RAW RESPONSE:', JSON.stringify({
+      msg_type: response.msg_type,
+      error: response.error,
+      proposal: response.proposal ? {
+        id: response.proposal.id,
+        ask_price: response.proposal.ask_price,
+        payout: response.proposal.payout,
+        spot: response.proposal.spot
+      } : null,
+      echo_req: response.echo_req
+    }, null, 2));
+    
     if (response.error) {
+      console.error('[DerivApiClient] PROPOSAL ERROR DETAILS:', {
+        error_code: response.error.code,
+        error_message: response.error.message,
+        error_type: typeof response.error,
+        full_error: response.error
+      });
       throw new Error(response.error.message);
     }
 
     const proposal = response.proposal;
     if (!proposal) {
+      console.error('[DerivApiClient] PROPOSAL ERROR: No proposal data in response');
       throw new Error('No proposal data in response');
     }
+
+    console.log('[DerivApiClient] PROPOSAL SUCCESS:', {
+      proposal_id: proposal.id,
+      ask_price: proposal.ask_price,
+      payout: proposal.payout,
+      spot: proposal.spot
+    });
 
     return {
       id: proposal.id,
@@ -172,16 +203,48 @@ export class DerivApiClient {
       Object.assign(derivRequest, request.parameters);
     }
 
+    console.log('[DerivApiClient] BUY REQUEST:', JSON.stringify({
+      ...derivRequest,
+      // Don't log sensitive fields if any
+    }, null, 2));
+
     const response = await this.wsClient.sendAndWait<any>(derivRequest);
     
+    console.log('[DerivApiClient] BUY RAW RESPONSE:', JSON.stringify({
+      msg_type: response.msg_type,
+      error: response.error,
+      buy: response.buy ? {
+        contract_id: response.buy.contract_id,
+        buy_price: response.buy.buy_price,
+        payout: response.buy.payout,
+        transaction_id: response.buy.transaction_id
+      } : null,
+      echo_req: response.echo_req
+    }, null, 2));
+    
     if (response.error) {
+      console.error('[DerivApiClient] BUY ERROR DETAILS:', {
+        error_code: response.error.code,
+        error_message: response.error.message,
+        error_type: typeof response.error,
+        full_error: response.error,
+        msg_type: response.msg_type
+      });
       throw new Error(response.error.message);
     }
 
     const buy = response.buy;
     if (!buy) {
+      console.error('[DerivApiClient] BUY ERROR: No buy data in response');
       throw new Error('No buy data in response');
     }
+
+    console.log('[DerivApiClient] BUY SUCCESS:', {
+      contract_id: buy.contract_id,
+      buy_price: buy.buy_price,
+      payout: buy.payout,
+      transaction_id: buy.transaction_id
+    });
 
     return {
       contract_id: buy.contract_id,
@@ -205,16 +268,46 @@ export class DerivApiClient {
       req_id: Date.now()
     };
 
+    console.log('[DerivApiClient] CONTRACT_UPDATE REQUEST:', JSON.stringify({
+      ...derivRequest,
+      // Don't log sensitive fields if any
+    }, null, 2));
+
     const response = await this.wsClient.sendAndWait<any>(derivRequest);
     
+    console.log('[DerivApiClient] CONTRACT_UPDATE RAW RESPONSE:', JSON.stringify({
+      msg_type: response.msg_type,
+      error: response.error,
+      contract_update: response.contract_update ? {
+        contract_id: response.contract_update.contract_id,
+        stop_loss: response.contract_update.stop_loss,
+        take_profit: response.contract_update.take_profit
+      } : null,
+      echo_req: response.echo_req
+    }, null, 2));
+    
     if (response.error) {
+      console.error('[DerivApiClient] CONTRACT_UPDATE ERROR DETAILS:', {
+        error_code: response.error.code,
+        error_message: response.error.message,
+        error_type: typeof response.error,
+        full_error: response.error,
+        msg_type: response.msg_type
+      });
       throw new Error(response.error.message);
     }
 
     const contractUpdate = response.contract_update;
     if (!contractUpdate) {
+      console.error('[DerivApiClient] CONTRACT_UPDATE ERROR: No contract_update data in response');
       throw new Error('No contract_update data in response');
     }
+
+    console.log('[DerivApiClient] CONTRACT_UPDATE SUCCESS:', {
+      contract_id: contractUpdate.contract_id,
+      stop_loss: contractUpdate.stop_loss,
+      take_profit: contractUpdate.take_profit
+    });
 
     return {
       contract_id: contractUpdate.contract_id,
