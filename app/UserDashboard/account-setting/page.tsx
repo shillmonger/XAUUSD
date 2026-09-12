@@ -18,6 +18,15 @@ import {
   X,
 } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+
 // --- Types ---
 interface PersonalInfo {
   username: string;
@@ -46,6 +55,8 @@ interface UserData {
   lastLoginAt?: string;
   activeDerivAccountType?: string;
 }
+
+const GOLD = "#D4AF37";
 
 export default function UserSettingsPage() {
   // --- Personal Info State ---
@@ -320,21 +331,21 @@ export default function UserSettingsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white text-neutral-950 font-sans">
-      <div className="max-w-5xl mx-auto space-y-8">
+    <main className="min-h-screen bg-background text-foreground">
+      <div className="mx-auto max-w-5xl space-y-6 py-4">
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
-            <Loader2 className="w-8 h-8 animate-spin text-neutral-400" />
+            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
           </div>
         ) : (
           <>
             {/* Header Banner */}
-            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 border-b-2 border-black pb-3 mb-6">
+            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
               <div>
-                <h1 className="text-2xl md:text-3xl font-mono font-black uppercase text-neutral-950 mb-0 lg:mb-2">
+                <h1 className="text-2xl md:text-2xl font-bold uppercase tracking-tight">
                   Account Settings
                 </h1>
-                <p className="text-sm text-neutral-600 font-semibold max-w-xl leading-relaxed">
+                <p className="text-sm text-muted-foreground mt-1 max-w-xl">
                   Update credentials and manage account settings
                 </p>
               </div>
@@ -345,309 +356,326 @@ export default function UserSettingsPage() {
               
               {/* LEFT COLUMN: Sidebar Card (Quick Identity Overview & Status) */}
               <div className="space-y-6 lg:sticky lg:top-4 lg:self-start">
-                <div className="bg-neutral-950 text-white rounded-2xl border-2 border-black shadow-none p-6">
-                  <h3 className="text-sm font-black uppercase tracking-widest mb-6 flex items-center gap-2">
-                    <User className="w-4 h-4 text-neutral-400" /> Profile Identity
-                  </h3>
-                  <div className="flex flex-col items-center text-center justify-center">
-                    <div className="relative">
-                      <div className="relative w-40 h-40 flex items-center text-center justify-center rounded-xl overflow-hidden border-2 border-neutral-800 bg-neutral-900 shadow-lg mb-4">
-                        {personalInfo.profileImage ? (
-                          <img 
-                            src={personalInfo.profileImage} 
-                            alt="Profile" 
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <User className="w-10 h-10 text-neutral-400" />
-                        )}
+                <Card className="border-border/50 shadow-sm">
+                  <CardHeader>
+                    <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
+                      <User className="w-4 h-4 text-[#D4AF37]" /> Profile Identity
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-col items-center text-center justify-center">
+                      <div className="relative">
+                        <div className="relative w-40 h-40 flex items-center text-center justify-center rounded-xl overflow-hidden border-2 border-border bg-muted shadow-lg mb-4">
+                          {personalInfo.profileImage ? (
+                            <img
+                              src={personalInfo.profileImage}
+                              alt="Profile"
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <User className="w-10 h-10 text-muted-foreground" />
+                          )}
+                        </div>
+                        <button
+                          onClick={() => setShowImagePicker(true)}
+                          className="absolute bottom-3 right-0 bg-white border border-border p-1.5 rounded-lg hover:bg-muted transition-colors cursor-pointer dark:bg-zinc-950 dark:text-white"
+                        >
+                          <ImageIcon className="w-4 h-4" />
+                        </button>
                       </div>
-                      <button
-                        onClick={() => setShowImagePicker(true)}
-                        className="absolute bottom-3 right-0 bg-white border border-neutral-300 p-1.5 rounded-lg hover:bg-neutral-100 transition-colors cursor-pointer"
-                      >
-                        <ImageIcon className="w-4 h-4 text-black" />
-                      </button>
+                      <h4 className="text-base font-bold uppercase tracking-tight">
+                        {personalInfo.username || "User Account"}
+                      </h4>
+                      <p className="text-xs text-muted-foreground">
+                        {personalInfo.email || "user@example.com"}
+                      </p>
                     </div>
-                    <h4 className="text-base font-black uppercase tracking-tight text-white">
-                      {personalInfo.username || "User Account"}
-                    </h4>
-                    <p className="text-xs text-neutral-400 font-mono">
-                      {personalInfo.email || "user@example.com"}
-                    </p>
-                  </div>
 
-                  <hr className="my-6 border-neutral-800" />
+                    <hr className="my-6 border-border/40" />
 
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="font-bold text-neutral-400 uppercase">Access Level</span>
-                      <span className="bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-lg font-black uppercase border border-emerald-500/20 text-[10px]">
-                        {personalInfo.role?.toUpperCase() || "USER"}
-                      </span>
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="font-semibold text-muted-foreground uppercase">Access Level</span>
+                        <span className="bg-emerald-500/10 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400 px-2 py-0.5 rounded-lg font-bold uppercase border border-emerald-500/20 text-[10px]">
+                          {personalInfo.role?.toUpperCase() || "USER"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="font-semibold text-muted-foreground uppercase">Identity Status</span>
+                        <span className={`${personalInfo.emailVerified ? 'bg-emerald-500/10 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-700 dark:bg-red-950/50 dark:text-red-400 border-red-500/20'} px-2 py-0.5 rounded-lg font-bold uppercase border text-[10px]`}>
+                          {personalInfo.emailVerified ? "VERIFIED" : "UNVERIFIED"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="font-semibold text-muted-foreground uppercase">Account Status</span>
+                        <span className={`${personalInfo.status === 'active' ? 'bg-emerald-500/10 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400 border-emerald-500/20' : personalInfo.status === 'suspended' ? 'bg-amber-500/10 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400 border-amber-500/20' : 'bg-red-500/10 text-red-700 dark:bg-red-950/50 dark:text-red-400 border-red-500/20'} px-2 py-0.5 rounded-lg font-bold uppercase border text-[10px]`}>
+                          {personalInfo.status?.toUpperCase() || "ACTIVE"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="font-semibold text-muted-foreground uppercase">Date Joined</span>
+                        <span className="bg-emerald-500/10 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400 px-2 py-0.5 rounded-lg font-bold uppercase border border-emerald-500/20 text-[10px]">
+                          {personalInfo.createdAt ? new Date(personalInfo.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A'}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="font-bold text-neutral-400 uppercase">Identity Status</span>
-                      <span className={`${personalInfo.emailVerified ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20'} px-2 py-0.5 rounded-lg font-black uppercase border text-[10px]`}>
-                        {personalInfo.emailVerified ? "VERIFIED" : "UNVERIFIED"}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="font-bold text-neutral-400 uppercase">Account Status</span>
-                      <span className={`${personalInfo.status === 'active' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : personalInfo.status === 'suspended' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20'} px-2 py-0.5 rounded-lg font-black uppercase border text-[10px]`}>
-                        {personalInfo.status?.toUpperCase() || "ACTIVE"}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="font-bold text-neutral-400 uppercase">Date Joined</span>
-                      <span className="bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-lg font-black uppercase border border-emerald-500/20 text-[10px]">
-                        {personalInfo.createdAt ? new Date(personalInfo.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+                  </CardContent>
+                </Card>
               </div>
 
               {/* RIGHT COLUMN: Action Blocks */}
               <div className="lg:col-span-2 space-y-8">
                 
                 {/* Component 1: Account Information Form */}
-                <form onSubmit={handleProfileUpdate} className="bg-neutral-950 text-white rounded-2xl border-2 border-black shadow-none  p-6 space-y-6">
-                  <div>
-                    <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
-                      <User className="w-4 h-4 text-neutral-400" /> Personal Information
-                    </h3>
-                    <p className="text-xs text-neutral-400 mt-1">Manage your active contact information</p>
-                  </div>
+                <Card className="border-border/50 shadow-sm">
+                  <CardHeader>
+                    <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
+                      <User className="w-4 h-4 text-[#D4AF37]" /> Personal Information
+                    </CardTitle>
+                    <CardDescription className="mt-1 text-xs">
+                      Manage your active contact information
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <form onSubmit={handleProfileUpdate} className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Username</label>
+                          <div className="relative">
+                            <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                            <input
+                              name="username"
+                              type="text"
+                              value={personalInfo.username}
+                              readOnly
+                              className="w-full bg-muted/50 border border-border rounded-lg pl-10 pr-4 py-3 text-sm text-muted-foreground cursor-not-allowed opacity-70"
+                            />
+                          </div>
+                        </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Username</label>
-                      <div className="relative">
-                        <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
-                        <input
-                          name="username"
-                          type="text"
-                          value={personalInfo.username}
-                          readOnly
-                          className="w-full bg-neutral-900/50 border border-neutral-800 rounded-lg pl-10 pr-4 py-3 text-sm text-neutral-400 cursor-not-allowed opacity-70"
-                        />
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Email Address</label>
+                          <div className="relative">
+                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                            <input
+                              name="email"
+                              type="email"
+                              value={personalInfo.email}
+                              readOnly
+                              className="w-full bg-muted/50 border border-border rounded-lg pl-10 pr-4 py-3 text-sm text-muted-foreground cursor-not-allowed opacity-70"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Country</label>
+                          <div className="relative">
+                            <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                            <input
+                              name="country"
+                              type="text"
+                              value={personalInfo.country}
+                              onChange={handleInputChange}
+                              className="w-full bg-background border border-border rounded-lg pl-10 pr-4 py-3 text-sm focus:ring-2 ring-[#D4AF37]/20 outline-none transition"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Phone Number</label>
+                          <div className="relative">
+                            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                            <input
+                              name="phone"
+                              type="tel"
+                              value={personalInfo.phone}
+                              onChange={handleInputChange}
+                              className="w-full bg-background border border-border rounded-lg pl-10 pr-4 py-3 text-sm focus:ring-2 ring-[#D4AF37]/20 outline-none transition"
+                            />
+                          </div>
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Email Address</label>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
-                        <input
-                          name="email"
-                          type="email"
-                          value={personalInfo.email}
-                          readOnly
-                          className="w-full bg-neutral-900/50 border border-neutral-800 rounded-lg pl-10 pr-4 py-3 text-sm text-neutral-400 cursor-not-allowed opacity-70"
-                        />
+                      <div className="pt-2">
+                        <Button
+                          type="submit"
+                          disabled={isUpdatingProfile}
+                          className="w-full gap-2 rounded-xl bg-[#D4AF37] p-5 text-xs font-bold uppercase tracking-wider text-black hover:bg-[#c9a227]"
+                        >
+                          {isUpdatingProfile ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" /> Saving...
+                            </>
+                          ) : (
+                            "Save Changes"
+                          )}
+                        </Button>
                       </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Country</label>
-                      <div className="relative">
-                        <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
-                        <input
-                          name="country"
-                          type="text"
-                          value={personalInfo.country}
-                          onChange={handleInputChange}
-                          className="w-full bg-neutral-900/60 border border-neutral-800 rounded-lg pl-10 pr-4 py-3 text-sm text-white focus:ring-2 ring-neutral-700 outline-none transition"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Phone Number</label>
-                      <div className="relative">
-                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
-                        <input
-                          name="phone"
-                          type="tel"
-                          value={personalInfo.phone}
-                          onChange={handleInputChange}
-                          className="w-full bg-neutral-900/60 border border-neutral-800 rounded-lg pl-10 pr-4 py-3 text-sm text-white focus:ring-2 ring-neutral-700 outline-none transition"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="pt-2">
-                    <button
-                      type="submit"
-                      disabled={isUpdatingProfile}
-                      className="w-full cursor-pointer bg-indigo-600 text-white px-8 py-3 rounded-xl font-black font-mono text-xs uppercase tracking-wider hover:bg-indigo-500 disabled:opacity-50 flex items-center justify-center gap-2 border border-indigo-500 shadow-lg shadow-indigo-500/30 transition"
-                    >
-                      {isUpdatingProfile ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" /> Saving...
-                        </>
-                      ) : (
-                        "Save Changes"
-                      )}
-                    </button>
-                  </div>
-                </form>
+                    </form>
+                  </CardContent>
+                </Card>
 
                 {/* Component 2: Forgot / Change Password Section */}
-                <form onSubmit={handlePasswordUpdate} className="bg-neutral-950 text-white rounded-2xl border-2 border-black shadow-none  p-6 space-y-6">
-                  <div>
-                    <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
-                      <Lock className="w-4 h-4 text-neutral-400" /> Credentials & Password
-                    </h3>
-                    <p className="text-xs text-neutral-400 mt-1">Change your current portal password</p>
-                  </div>
+                <Card className="border-border/50 shadow-sm">
+                  <CardHeader>
+                    <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
+                      <Lock className="w-4 h-4 text-[#D4AF37]" /> Credentials & Password
+                    </CardTitle>
+                    <CardDescription className="mt-1 text-xs">
+                      Change your current portal password
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <form onSubmit={handlePasswordUpdate} className="space-y-6">
+                      <div className="space-y-4">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Current Password</label>
+                          <div className="relative">
+                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                            <input
+                              type={showCurrentPassword ? "text" : "password"}
+                              value={currentPassword}
+                              onChange={(e) => setCurrentPassword(e.target.value)}
+                              placeholder="••••••••"
+                              className="w-full bg-background border border-border rounded-lg pl-10 pr-10 py-3 text-sm focus:ring-2 ring-[#D4AF37]/20 outline-none transition"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition"
+                            >
+                              {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </button>
+                          </div>
+                        </div>
 
-                  <div className="space-y-4">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Current Password</label>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
-                        <input
-                          type={showCurrentPassword ? "text" : "password"}
-                          value={currentPassword}
-                          onChange={(e) => setCurrentPassword(e.target.value)}
-                          placeholder="••••••••"
-                          className="w-full bg-neutral-900/60 border border-neutral-800 rounded-lg pl-10 pr-10 py-3 text-sm text-white focus:ring-2 ring-neutral-700 outline-none transition"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white transition"
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">New Password</label>
+                            <div className="relative">
+                              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                              <input
+                                type={showNewPassword ? "text" : "password"}
+                                value={newPassword}
+                                onChange={(e) => setNewPassword(e.target.value)}
+                                placeholder="••••••••"
+                                className="w-full bg-background border border-border rounded-lg pl-10 pr-10 py-3 text-sm focus:ring-2 ring-[#D4AF37]/20 outline-none transition"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setShowNewPassword(!showNewPassword)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition"
+                              >
+                                {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Confirm New Password</label>
+                            <div className="relative">
+                              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                              <input
+                                type={showConfirmPassword ? "text" : "password"}
+                                value={confirmPassword}
+                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                placeholder="••••••••"
+                                className="w-full bg-background border border-border rounded-lg pl-10 pr-10 py-3 text-sm focus:ring-2 ring-[#D4AF37]/20 outline-none transition"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition"
+                              >
+                                {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="pt-2">
+                        <Button
+                          type="submit"
+                          disabled={isUpdatingPassword}
+                          className="w-full gap-2 rounded-xl bg-[#D4AF37] p-5 text-xs font-bold uppercase tracking-wider text-black hover:bg-[#c9a227]"
                         >
-                          {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                        </button>
+                          {isUpdatingPassword ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" /> Changing Password...
+                            </>
+                          ) : (
+                            "Update Password"
+                          )}
+                        </Button>
                       </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-neutral-400">New Password</label>
-                        <div className="relative">
-                          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
-                          <input
-                            type={showNewPassword ? "text" : "password"}
-                            value={newPassword}
-                            onChange={(e) => setNewPassword(e.target.value)}
-                            placeholder="••••••••"
-                            className="w-full bg-neutral-900/60 border border-neutral-800 rounded-lg pl-10 pr-10 py-3 text-sm text-white focus:ring-2 ring-neutral-700 outline-none transition"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowNewPassword(!showNewPassword)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white transition"
-                          >
-                            {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Confirm New Password</label>
-                        <div className="relative">
-                          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
-                          <input
-                            type={showConfirmPassword ? "text" : "password"}
-                            value={confirmPassword}
-                            onChange={(e) => setConfirmPassword(e.target.value)}
-                            placeholder="••••••••"
-                            className="w-full bg-neutral-900/60 border border-neutral-800 rounded-lg pl-10 pr-10 py-3 text-sm text-white focus:ring-2 ring-neutral-700 outline-none transition"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white transition"
-                          >
-                            {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="pt-2">
-                    <button
-                      type="submit"
-                      disabled={isUpdatingPassword}
-                      className="w-full cursor-pointer bg-indigo-600 text-white px-8 py-3 rounded-xl font-black font-mono text-xs uppercase tracking-wider hover:bg-indigo-500 disabled:opacity-50 flex items-center justify-center gap-2 border border-indigo-500 shadow-lg shadow-indigo-500/30 transition"
-                    >
-                      {isUpdatingPassword ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" /> Changing Password...
-                        </>
-                      ) : (
-                        "Update Password"
-                      )}
-                    </button>
-                  </div>
-                </form>
+                    </form>
+                  </CardContent>
+                </Card>
 
                 {/* Component 3: Danger Zone */}
-                <div className="bg-rose-950/30 text-white rounded-2xl border-2 border-rose-900 p-6 space-y-6 shadow-none ">
-                  <div className="flex items-start gap-4">
-                    <div className="bg-rose-900/30 p-3 rounded-lg border border-rose-800 text-red-800">
-                      <ShieldAlert className="w-6 h-6" />
+                <Card className="border-red-500/50 shadow-sm">
+                  <CardHeader>
+                    <div className="flex items-start gap-4">
+                      <div className="bg-red-500/10 p-3 rounded-lg border border-red-500/20 text-red-600 dark:text-red-400">
+                        <ShieldAlert className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-sm font-bold uppercase tracking-wider text-red-600 dark:text-red-400">
+                          Danger Zone
+                        </CardTitle>
+                        <CardDescription className="mt-1 text-xs">
+                          Once you delete your account, there is no going back. Please be certain.
+                        </CardDescription>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="text-sm font-black uppercase tracking-widest text-rose-400">
-                        Danger Zone
-                      </h3>
-                      <p className="text-xs text-neutral-700 font-semibold mt-1">
-                        Once you delete your account, there is no going back. Please be certain.
-                      </p>
-                    </div>
-                  </div>
+                  </CardHeader>
+                  <CardContent>
+                    <form onSubmit={handleDeleteAccount} className="space-y-4">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-red-600 dark:text-red-400">
+                          Type <span className="font-mono bg-red-500/10 px-1 py-0.5 rounded-lg border border-red-500/20 text-red-600 dark:text-red-400">DELETE</span> to confirm
+                        </label>
+                        <input
+                          type="text"
+                          value={deleteInput}
+                          onChange={(e) => setDeleteInput(e.target.value)}
+                          placeholder="DELETE"
+                          className="w-full bg-background border border-red-500/50 rounded-lg px-4 py-3 text-sm focus:ring-2 ring-red-500/20 outline-none transition"
+                        />
+                      </div>
 
-                  <form onSubmit={handleDeleteAccount} className="space-y-4">
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-rose-400">
-                        Type <span className="font-mono bg-red-900/30 px-1 py-0.5 rounded-lg border border-red-800 text-red-800">DELETE</span> to confirm
-                      </label>
-                      <input
-                        type="text"
-                        value={deleteInput}
-                        onChange={(e) => setDeleteInput(e.target.value)}
-                        placeholder="DELETE"
-                        className="w-full bg-neutral-900/60 border mt-2 border-rose-900 rounded-lg px-4 py-3 text-sm text-white focus:ring-2 ring-rose-900 outline-none transition"
-                      />
-                    </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-red-600 dark:text-red-400">
+                          Enter your password
+                        </label>
+                        <input
+                          type="password"
+                          value={deletePassword}
+                          onChange={(e) => setDeletePassword(e.target.value)}
+                          placeholder="Your password"
+                          className="w-full bg-background border border-red-500/50 rounded-lg px-4 py-3 text-sm focus:ring-2 ring-red-500/20 outline-none transition"
+                        />
+                      </div>
 
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-rose-400">
-                        Enter your password
-                      </label>
-                      <input
-                        type="password"
-                        value={deletePassword}
-                        onChange={(e) => setDeletePassword(e.target.value)}
-                        placeholder="Your password"
-                        className="w-full bg-neutral-900/60 border mt-2 border-rose-900 rounded-lg px-4 py-3 text-sm text-white focus:ring-2 ring-rose-900 outline-none transition"
-                      />
-                    </div>
-
-                    <button
-                      type="submit"
-                      disabled={isDeletingAccount || deleteInput !== "DELETE" || !deletePassword}
-                      className="w-full cursor-pointer bg-rose-600 text-white px-8 py-3 rounded-xl font-black font-mono text-xs uppercase tracking-wider hover:bg-rose-500 disabled:opacity-30 flex items-center justify-center gap-2 border border-rose-500 shadow-lg shadow-rose-500/30 transition"
-                    >
-                      {isDeletingAccount ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" /> Deleting...
-                        </>
-                      ) : (
-                        <>
-                          <Trash2 className="w-4 h-4" /> Delete Account
-                        </>
-                      )}
-                    </button>
-                  </form>
-                </div>
+                      <Button
+                        type="submit"
+                        disabled={isDeletingAccount || deleteInput !== "DELETE" || !deletePassword}
+                        className="w-full gap-2 rounded-xl bg-red-600 p-5 text-xs font-bold uppercase tracking-wider text-white hover:bg-red-700 disabled:opacity-30"
+                      >
+                        {isDeletingAccount ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" /> Deleting...
+                          </>
+                        ) : (
+                          <>
+                            <Trash2 className="w-4 h-4" /> Delete Account
+                          </>
+                        )}
+                      </Button>
+                    </form>
+                  </CardContent>
+                </Card>
 
               </div>
 
@@ -659,36 +687,38 @@ export default function UserSettingsPage() {
       {/* Profile Image Picker Modal */}
       {showImagePicker && (
         <div
-          className="fixed inset-0 z-500 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
           onClick={() => setShowImagePicker(false)}
         >
-          <div
-            className="bg-neutral-950 border-2 border-neutral-800 rounded-2xl w-full max-w-3xl max-h-[80vh] overflow-hidden relative"
+          <Card
+            className="w-full max-w-3xl max-h-[80vh] overflow-hidden relative"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between p-4 border-b border-neutral-800">
-              <h2 className="text-lg font-black uppercase tracking-tighter text-white flex items-center gap-2">
-                <ImageIcon className="w-5 h-5 text-neutral-400" /> Select Pfp Image
-              </h2>
-              <button
+            <CardHeader className="flex items-center justify-between space-y-0">
+              <CardTitle className="text-lg font-bold uppercase tracking-tighter flex items-center gap-2">
+                <ImageIcon className="w-5 h-5 text-[#D4AF37]" /> Select Profile Image
+              </CardTitle>
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={() => setShowImagePicker(false)}
-                className="text-neutral-500 cursor-pointer hover:text-white transition-colors"
+                className="h-8 w-8"
               >
                 <X className="w-5 h-5" />
-              </button>
-            </div>
+              </Button>
+            </CardHeader>
 
-            <div className="p-4 overflow-y-auto max-h-[60vh]">
+            <CardContent className="p-4 overflow-y-auto max-h-[60vh]">
               <div className="grid grid-cols-4 sm:grid-cols-5 gap-3">
                 {availableImages.map((imagePath) => (
                   <button
                     key={imagePath}
                     onClick={() => handleImageSelect(imagePath)}
                     disabled={isUpdatingImage}
-                    className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-all hover:border-white ${
+                    className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-all hover:border-[#D4AF37] ${
                       personalInfo.profileImage === imagePath
                         ? 'border-emerald-500 ring-2 ring-emerald-500/50'
-                        : 'border-neutral-800'
+                        : 'border-border'
                     } ${isUpdatingImage ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                   >
                     <img
@@ -708,20 +738,21 @@ export default function UserSettingsPage() {
                   </button>
                 ))}
               </div>
-            </div>
+            </CardContent>
 
-            <div className="p-4 border-t border-neutral-800 flex justify-end">
-              <button
+            <div className="p-4 border-t border-border flex justify-end">
+              <Button
+                variant="outline"
                 onClick={() => setShowImagePicker(false)}
                 disabled={isUpdatingImage}
-                className="px-6 py-2 rounded-xl cursor-pointer border border-indigo-800 bg-indigo-900 text-indigo-300 hover:text-white font-black text-xs uppercase tracking-widest transition-colors disabled:opacity-50"
+                className="rounded-full"
               >
                 Cancel
-              </button>
+              </Button>
             </div>
-          </div>
+          </Card>
         </div>
       )}
-    </div>
+    </main>
   );
 }

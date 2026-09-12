@@ -155,20 +155,8 @@ export default function UserSidebar({
 
     { name: "Trade History", icon: Layers, href: `${basePath}/live-trading` },
     { name: "Transactions", icon: History, href: `${basePath}/transactions` },
+    { name: "Predict Market", icon: BarChart3, href: `${basePath}/predict` },
 
-
-  {
-    name: "Earn Free USDT",
-    icon: BarChart3,
-    children: [
-      { name: "Achievements", icon: Gem, href: `${basePath}/achievements` },
-      {
-        name: "Predict Market",
-        icon: ChartColumnBig,
-        href: `${basePath}/predict`,
-      },
-    ],
-  },
   {
     name: "Community",
     icon: Users,

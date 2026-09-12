@@ -26,7 +26,7 @@ export default function UserNav() {
     { name: "Broker", icon: Unplug, href: `${basePath}/mt5-connection` },
     { name: "Predict", icon: BarChart3, href: `#` },
     { name: "Analytics", icon: PieChart, href: `${basePath}/my-investments` },
-    { name: "Settings", icon: Settings, href: `${basePath}/user-settings` },
+    { name: "Settings", icon: Settings, href: `${basePath}/account-setting` },
   ];
 
   const isActive = (href: string) =>
