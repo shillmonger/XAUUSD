@@ -12,12 +12,20 @@ const CANDIDATE_KEYWORDS = [
   // Symbol references
   'XAUUSD',
   'GOLD',
+  'XAU',
+  '#XAUUSD',
+  '#GOLD',
+  '#XAU',
   
   // Direction indicators
   'BUY',
   'SELL',
   'BUY NOW',
   'SELL NOW',
+  'BUY-',
+  'SELL-',
+  'LONG',
+  'SHORT',
   
   // Order types
   'BUY LIMIT',
@@ -26,6 +34,8 @@ const CANDIDATE_KEYWORDS = [
   'SELL STOP',
   'LIMIT',
   'STOP',
+  'BUY @',
+  'SELL @',
   
   // Trading components
   'ENTRY',
@@ -33,15 +43,26 @@ const CANDIDATE_KEYWORDS = [
   'TP1',
   'TP2',
   'TP3',
+  'TP4',
+  'TP5',
   'SL',
   'STOP LOSS',
   'TAKE PROFIT',
+  'TARGET',
+  'TGT',
+  'TGT1',
+  'TGT2',
+  'TGT3',
   
   // Common trading phrases
   'ENTER',
   'ENTRY POINT',
   'TARGET',
-  'STOP'
+  'STOP',
+  'PROFIT',
+  'P1',
+  'P2',
+  'P3'
 ];
 
 /**
@@ -82,8 +103,13 @@ export function hasXAUUSDContext(messageText: string): boolean {
   const normalizedText = messageText.replace(/\s+/g, ' ');
   const upperText = normalizedText.toUpperCase();
 
-  // Check for explicit XAUUSD or GOLD references
-  return upperText.includes('XAUUSD') || upperText.includes('GOLD');
+  // Check for explicit XAUUSD or GOLD references (including hashtag variants)
+  return upperText.includes('XAUUSD') || 
+         upperText.includes('GOLD') || 
+         upperText.includes('XAU') ||
+         upperText.includes('#XAUUSD') || 
+         upperText.includes('#GOLD') || 
+         upperText.includes('#XAU');
 }
 
 /**
@@ -112,12 +138,31 @@ export function hasStrongTradingIndicators(messageText: string): boolean {
     'TP2',
     'TP3',
     'STOP LOSS',
-    'TAKE PROFIT'
+    'TAKE PROFIT',
+    // Compact formats
+    'BUY-',
+    'SELL-',
+    'TP:',
+    'SL:',
+    'TARGET',
+    'STOP:',
+    'ENTRY:',
+    // Direction with numbers (regex patterns)
+    /BUY\s*\d+/,
+    /SELL\s*\d+/,
+    // Pattern with price ranges
+    /\d+-\d+/, // e.g., 4050-4055
   ];
 
   for (const indicator of strongIndicators) {
-    if (upperText.includes(indicator)) {
-      return true;
+    if (typeof indicator === 'string') {
+      if (upperText.includes(indicator)) {
+        return true;
+      }
+    } else if (indicator instanceof RegExp) {
+      if (indicator.test(upperText)) {
+        return true;
+      }
     }
   }
 
