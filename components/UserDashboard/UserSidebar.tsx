@@ -190,7 +190,7 @@ export default function UserSidebar({
             {
               name: "Switch to Admin",
               icon: Lock,
-              href: `/admin-dashboard/dashboard`,
+              href: `/AdminDashboard/dashboard`,
             },
           ]
         : []),

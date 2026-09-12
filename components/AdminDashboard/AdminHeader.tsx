@@ -1,154 +1,163 @@
 "use client";
 
-import { Menu, Settings } from "lucide-react";
-import Image from "next/image";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
+import {
+  Menu,
+  X,
+  Sun,
+  Moon,
+  Bell,
+} from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useTheme } from "next-themes";
+import { useMounted } from "@/hooks/useMounted";
+import Link from "next/link";
 
-interface AdminMobileHeaderProps {
+interface HeaderProps {
   onLeftClick: () => void;
-  onRightClick?: () => void;
-  onNotificationClick?: () => void;
-  onProfileClick?: () => void;
-  userAvatarUrl?: string;
-  hasUnreadNotifications?: boolean;
 }
 
-export default function AdminHeader({
-  onLeftClick,
-  onRightClick,
-  onNotificationClick,
-  onProfileClick,
-  userAvatarUrl,
-  hasUnreadNotifications = true,
-}: AdminMobileHeaderProps) {
-  const [currentTextIndex, setCurrentTextIndex] = useState(0);
-  const [displayText, setDisplayText] = useState("");
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [profileImage, setProfileImage] = useState(userAvatarUrl);
+interface UserData {
+  userName: string;
+  email: string;
+  avatar?: string;
+}
 
+export default function UserHeader({
+  onLeftClick,
+}: HeaderProps) {
+  // Theme state
+  const mounted = useMounted();
+  const { theme, setTheme } = useTheme();
+  
+  // Fetch user data from backend
+  const [user, setUser] = useState<UserData>({
+    userName: "Loading...",
+    email: "",
+    avatar: "https://github.com/shadcn.png",
+  });
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Notification count
+  const [notificationCount, setNotificationCount] = useState(0);
+  const [notificationLoading, setNotificationLoading] = useState(true);
+
+  // Fetch user data on component mount
   useEffect(() => {
-    fetch('/api/user/me')
-      .then(res => res.json())
-      .then(data => {
-        if (data.user?.profileImage) {
-          setProfileImage(data.user.profileImage);
+    const fetchData = async () => {
+      try {
+        const response = await fetch("/api/user/info");
+        const data = await response.json();
+
+        if (data.success) {
+          const userData = data.user;
+          setUser({
+            userName: userData.userName || "User",
+            email: userData.email || "",
+            avatar: userData.avatar || "",
+          });
+
+          // Fetch notification count
+          await fetchNotificationCount(userData._id);
+        } else {
+          console.error("Failed to fetch user data:", data.error);
         }
-      })
-      .catch(err => console.error('Failed to fetch profile image:', err));
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+      } finally {
+        setIsLoading(false);
+        setNotificationLoading(false);
+      }
+    };
+
+    const fetchNotificationCount = async (userId: string) => {
+      try {
+        // TODO: Implement notification count when API endpoints are available
+        // Currently commented out due to missing API routes
+        setNotificationCount(0);
+      } catch (error) {
+        console.error("Error fetching notification count:", error);
+        setNotificationCount(0);
+      }
+    };
+
+    fetchData();
   }, []);
 
-  const texts = [
-    "ADMIN PANEL",
-    "SHILLMONGER",
-    "CONTROL ROOM",
-  ];
-
-  useEffect(() => {
-    const currentFullText = texts[currentTextIndex];
-    const typingSpeed = isDeleting ? 40 : 80;
-    const delayAfterComplete = isDeleting ? 400 : 2200;
-
-    const timeout = setTimeout(() => {
-      if (!isDeleting) {
-        if (displayText.length < currentFullText.length) {
-          setDisplayText(currentFullText.slice(0, displayText.length + 1));
-        } else {
-          setTimeout(() => setIsDeleting(true), delayAfterComplete);
-        }
-      } else {
-        if (displayText.length > 0) {
-          setDisplayText(displayText.slice(0, -1));
-        } else {
-          setIsDeleting(false);
-          setCurrentTextIndex((prev) => (prev + 1) % texts.length);
-        }
-      }
-    }, typingSpeed);
-
-    return () => clearTimeout(timeout);
-  }, [displayText, isDeleting, currentTextIndex, texts]);
+  // Default profile image constant
+  const defaultProfileImage = "https://github.com/shadcn.png";
 
   return (
-    <header
-      className="
-        lg:hidden
-        fixed top-0 left-0 right-0 z-40
-        flex items-center justify-between
-        bg-black backdrop-blur-md
-        border-b border-indigo-900/40
-        px-4 py-2
-        shadow-lg shadow-black/40
-      "
-    >
-      {/* Left: Sidebar Toggle Button */}
-      <button
-        onClick={onLeftClick}
-        aria-label="Open sidebar menu"
-        className="
-          cursor-pointer p-2 rounded-xl
-          bg-indigo-950/40 hover:bg-indigo-900/60
-          border border-indigo-800/50
-          text-white
-          transition-all duration-200 active:scale-95
-        "
-      >
-        <Menu className="w-5 h-5" />
-      </button>
+    <header className="h-15 lg:h-15 border-b border-border flex items-center justify-between gap-4 px-4 sm:px-10 bg-background/80 backdrop-blur-md sticky top-0 z-50">
+      <div className="flex items-center gap-3 flex-shrink-0">
+        <button
+          className="lg:hidden p-2 rounded-xl hover:bg-secondary transition-colors"
+          onClick={onLeftClick}
+        >
+          <Menu className="h-5 w-5" />
+        </button>
 
-      {/* Center: Live Typewriter Header */}
-      <div className="flex items-center gap-2">
-        <span className="relative flex h-2 w-2">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-        </span>
-        <span className="text-sm font-extrabold uppercase tracking-[0.18em] text-transparent bg-clip-text bg-gradient-to-r from-indigo-100 via-indigo-300 to-white">
-          {displayText}
-          <span className="animate-pulse text-indigo-400">|</span>
-        </span>
+        <div className="space-y-0.5">
+          <p className="text-[8px] md:text-xs text-muted-foreground font-medium uppercase tracking-widest hidden xs:block">
+            Member Experience
+          </p>
+        </div>
       </div>
 
-      {/* Right: Actions Group (Notification Bell & Profile Avatar) */}
-      <div className="flex items-center gap-2.5">
-        {/* Setting Icon Button */}
+      <div className="flex items-center gap-2 sm:gap-2">
+        {/* Theme toggle */}
         <button
-          onClick={onNotificationClick || onRightClick}
-          aria-label="Setting"
-          className="
-            relative cursor-pointer p-2 rounded-xl
-            bg-indigo-950/40 hover:bg-indigo-900/60
-            border border-indigo-800/50
-            text-white
-            transition-all duration-200 active:scale-95
-          "
+          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+          className="p-2 rounded-full cursor-pointer bg-secondary transition-colors"
+          title="Toggle theme"
         >
-          <Settings className="w-5 h-5" />
-          {hasUnreadNotifications && (
-            <span className="absolute top-1.5 right-1.5 flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
-            </span>
-          )}
+          {mounted &&
+            (theme === "dark" ? (
+              <Sun className="w-5 h-5 text-white" />
+            ) : (
+              <Moon className="w-5 h-5 text-foreground" />
+            ))}
         </button>
 
-        {/* User Profile Avatar */}
-        <button
-          onClick={onProfileClick || onRightClick}
-          aria-label="User profile"
-          className="
-            relative cursor-pointer
-            p-0.5 rounded-full
-            hover:scale-105 active:scale-95
-            transition-all duration-200
-          "
+        {/* Notification Bell */}
+        <Link
+          href="/UserDashboard/notifications"
+          className="p-2 bg-secondary rounded-full relative cursor-pointer"
         >
-          <div className="relative w-10 h-10 rounded-full overflow-hidden">
-            <img
-              src={profileImage}
-              alt="User Profile Avatar"
-              className="w-full h-full object-cover"
-            />
+          <Bell className="h-5 w-5" />
+
+          {!notificationLoading && notificationCount > 0 && (
+            <span className="absolute top-0 right-0 bg-red-500 text-white text-[9px] font-black rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center border-2 border-background leading-none">
+              {notificationCount > 9 ? "9+" : notificationCount}
+            </span>
+          )}
+        </Link>
+
+        {/* User Details - No dropdown */}
+        <div className="flex items-center gap-3 pl-4 border-l border-border">
+          <div className="hidden sm:block text-right">
+            {!isLoading ? (
+              <>
+                <p className="text-xs font-black uppercase tracking-widest text-foreground">{user.userName}</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{user.email}</p>
+              </>
+            ) : (
+              <>
+                <div className="h-3 w-20 bg-muted animate-pulse rounded mb-1" />
+                <div className="h-2 w-28 bg-muted animate-pulse rounded" />
+              </>
+            )}
           </div>
-        </button>
+          <Avatar className="h-10 w-10 border-2 border-border">
+            <AvatarImage 
+              src={user.avatar || defaultProfileImage} 
+              alt={user.userName} 
+            />
+            <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
+              {user.userName?.charAt(0).toUpperCase() || "U"}
+            </AvatarFallback>
+          </Avatar>
+        </div>
       </div>
     </header>
   );

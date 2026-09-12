@@ -39,8 +39,10 @@ import {
 const GOLD = "#D4AF37";
 
 const IMAGES = [
-  "https://i.postimg.cc/j2qtwsZr/man.jpg",
-  "https://i.postimg.cc/BQ6JJnj7/Deriv-com.jpg",
+  // "https://i.postimg.cc/j2qtwsZr/man.jpg",
+  // "https://i.postimg.cc/BQ6JJnj7/Deriv-com.jpg",
+  "https://i.postimg.cc/cJqW77Fd/deriv.jpg",
+  "https://i.postimg.cc/cJqW77Fd/deriv.jpg",
   "https://i.postimg.cc/cJqW77Fd/deriv.jpg",
 ];
 
@@ -489,7 +491,7 @@ export default function ConnectDerivPage() {
                     <span className="px-3 py-1 bg-white/10 backdrop-blur-md border border-white/20 rounded-full text-[10px] font-bold text-white uppercase tracking-widest">
                       Connect
                     </span>
-                    <span className="px-3 py-1 bg-[#D4AF37]/80 backdrop-blur-md rounded-full text-[10px] font-bold text-black uppercase tracking-widest flex items-center gap-1">
+                    <span className="px-3 py-1 bg-[#E31B23] backdrop-blur-md rounded-full text-[10px] font-bold text-white uppercase tracking-widest flex items-center gap-1">
                       <ShieldCheck className="w-3 h-3" /> Secure
                     </span>
                   </div>
@@ -540,24 +542,33 @@ export default function ConnectDerivPage() {
                   </div>
 
                   {/* Action Button */}
-                  <Button
-                    size="lg"
-                    onClick={handleConnect}
-                    disabled={isLoading}
-                    className="h-12 w-full cursor-pointer rounded-full bg-[#D4AF37] px-5 text-sm font-semibold text-black shadow-md shadow-[#D4AF37]/20 hover:bg-[#c9a227] disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isLoading ? (
-                      <div className="flex items-center gap-2">
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <span className="whitespace-nowrap">Connecting...</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <Link2 className="w-4 h-4" />
-                        <span className="whitespace-nowrap">Connect Deriv Account</span>
-                      </div>
-                    )}
-                  </Button>
+<Button
+  size="lg"
+  onClick={handleConnect}
+  disabled={isLoading}
+  className="group relative h-13 w-full cursor-pointer overflow-hidden rounded-2xl bg-[#E31B23] px-6 font-bold text-white shadow-md shadow-[#E31B23]/20 transition-all hover:pr-8 hover:bg-[#c9151d] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+>
+  {isLoading ? (
+    <div className="relative z-10 flex w-full items-center justify-between">
+      <div className="flex items-center gap-2">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        <span className="whitespace-nowrap">Connecting...</span>
+      </div>
+
+      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20">
+        <Loader2 className="h-5 w-5 animate-spin" />
+      </div>
+    </div>
+  ) : (
+    <div className="relative z-10 flex w-full items-center justify-between">
+      <span className="whitespace-nowrap">Connect Deriv Account</span>
+
+      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 transition-transform group-hover:rotate-45">
+        <ArrowUpRight className="h-5 w-5" />
+      </div>
+    </div>
+  )}
+</Button>
                 </div>
               </BottomSheet>
             </div>

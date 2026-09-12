@@ -34,7 +34,7 @@ export default function UserHeader({
   const [user, setUser] = useState<UserData>({
     userName: "Loading...",
     email: "",
-    avatar: "",
+    avatar: "https://github.com/shadcn.png",
   });
   const [isLoading, setIsLoading] = useState(true);
 
