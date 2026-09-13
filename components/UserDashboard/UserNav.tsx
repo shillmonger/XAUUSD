@@ -23,7 +23,7 @@ export default function UserNav() {
   const navItems = [
     { name: "Home", icon: LayoutDashboard, href: `${basePath}/dashboard` },
     { name: "Billing", icon: Wallet, href: `${basePath}/subscription` },
-    { name: "Broker", icon: Unplug, href: `${basePath}/mt5-connection` },
+    { name: "Broker", icon: Unplug, href: `${basePath}/connect-deriv` },
     { name: "Predict", icon: BarChart3, href: `#` },
     { name: "Analytics", icon: PieChart, href: `${basePath}/my-investments` },
     { name: "Settings", icon: Settings, href: `${basePath}/account-setting` },
