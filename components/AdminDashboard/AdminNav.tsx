@@ -9,22 +9,24 @@ import {
   Gem,
   ChartColumnBig,
   BadgeCheck,
+  Users,
   Wallet,
   ChartSpline,
   BarChart3,
+  Send,
   PieChart,
   Gift,
   Settings,
 } from "lucide-react";
 export default function UserNav() {
   const pathname = usePathname();
-  const basePath = "/UserDashboard";
+  const basePath = "/AdminDashboard";
 
   const navItems = [
     { name: "Home", icon: LayoutDashboard, href: `${basePath}/dashboard` },
-    { name: "Billing", icon: Wallet, href: `${basePath}/subscription` },
-    { name: "Broker", icon: Unplug, href: `${basePath}/mt5-connection` },
-    { name: "Predict", icon: BarChart3, href: `#` },
+    { name: "Provider", icon: Send, href: `${basePath}/providers` },
+    { name: "Billings", icon: Wallet, href: `${basePath}/mt5-connection` },
+    { name: "Deriv", icon: Users, href: `${basePath}/deriv-accounts` },
     { name: "Analytics", icon: PieChart, href: `${basePath}/my-investments` },
     { name: "Settings", icon: Settings, href: `${basePath}/user-settings` },
   ];

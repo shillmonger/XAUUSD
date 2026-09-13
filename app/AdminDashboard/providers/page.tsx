@@ -14,7 +14,12 @@ import {
   Search,
   Wifi,
   WifiOff,
-  LogOut
+  LogOut,
+  Radio,
+  Clock,
+  UserCircle2,
+  Hash,
+  ShieldCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -44,6 +49,83 @@ interface TelegramConnection {
   };
   connectedAt?: string;
   lastCheckedAt?: string;
+}
+
+/**
+ * ToggleRow
+ * Shared settings-list toggle primitive (label + optional description on
+ * the left, pill switch on the right) — kept visually consistent with the
+ * toggle pattern used elsewhere in the dashboard.
+ */
+function ToggleRow({
+  label,
+  description,
+  checked,
+  onChange,
+  disabled = false,
+  color = "emerald",
+}: {
+  label: string;
+  description?: string;
+  checked: boolean;
+  onChange: () => void;
+  disabled?: boolean;
+  color?: "emerald" | "gold" | "amber" | "red";
+}) {
+  const trackColor: Record<string, string> = {
+    emerald: "bg-emerald-500",
+    gold: "bg-[#D4AF37]",
+    amber: "bg-amber-500",
+    red: "bg-red-500",
+  };
+
+  return (
+    <div className="flex items-center gap-3">
+      <div className="min-w-0 text-right">
+        {description && (
+          <p className="text-[10px] font-mono text-muted-foreground">{description}</p>
+        )}
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        aria-label={label}
+        disabled={disabled}
+        onClick={onChange}
+        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border border-black/5 transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-card disabled:cursor-not-allowed disabled:opacity-40 ${
+          checked ? trackColor[color] : "bg-muted-foreground/25"
+        }`}
+      >
+        <span
+          className="inline-block h-5 w-5 rounded-full bg-white shadow-md transition-transform duration-200 ease-in-out"
+          style={{ transform: checked ? "translateX(21px)" : "translateX(2px)" }}
+        />
+      </button>
+    </div>
+  );
+}
+
+function SectionHeading({
+  icon,
+  title,
+  right,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  right?: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between border-b border-border/60 pb-3">
+      <div className="flex items-center gap-2.5">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-muted text-[#D4AF37]">
+          {icon}
+        </div>
+        <h2 className="text-sm font-black uppercase tracking-wider">{title}</h2>
+      </div>
+      {right}
+    </div>
+  );
 }
 
 export default function ProvidersPage() {
@@ -343,415 +425,506 @@ export default function ProvidersPage() {
     return savedProviders.find(p => p.groupId === groupId);
   };
 
+  const filteredGroups = telegramGroups.filter(group =>
+    group.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
-    <div className="min-h-screen flex flex-col bg-white text-neutral-950 font-sans">
-      <main className="flex-grow flex items-center justify-center">
-        <div className="w-full max-w-7xl space-y-5">
-          
-          {/* Welcome Section */}
-          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 border-b-2 border-black pb-3">
-            <div>
-              <p className="text-[11px] font-black uppercase tracking-[0.2em] text-neutral-500 mb-1">
-                {greeting}, Admin
-              </p>
-              <h1 className="text-4xl md:text-3xl font-mono font-black uppercase text-neutral-950 mb-2">
-                Telegram Providers
-              </h1>
-            </div>
-            <div className="hidden lg:block bg-neutral-950 text-white border-2 border-black px-4 py-2 text-right rounded-xl flex-shrink-0">
-              <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400 block">
-                System Time
+    <div className="min-h-screen bg-background text-foreground font-sans">
+      <main className="mx-auto w-full max-w-7xl py-5 lg:py-5">
+
+        {/* HEADER */}
+        <div className="mb-5 flex flex-col gap-4 border-b border-border/60 pb-2 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="mb-1 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
+              {greeting}, Admin
+            </p>
+            <h1 className="flex items-center gap-2.5 text-2xl font-mono font-black uppercase tracking-tight">
+              <Send className="h-5 w-5 text-[#D4AF37]" />
+              Telegram Providers
+            </h1>
+          </div>
+<div className="hidden items-center gap-3 md:flex">
+            
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-widest ${
+                telegramConnection?.connected
+                  ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                  : "border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-400"
+              }`}
+            >
+              <span className="relative flex h-1.5 w-1.5">
+                {telegramConnection?.connected && (
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75" />
+                )}
+                <span className={`relative inline-flex h-1.5 w-1.5 rounded-full ${telegramConnection?.connected ? "bg-emerald-500" : "bg-red-500"}`} />
               </span>
-              <span className="text-xs font-mono font-bold">
-                {currentTime || "July 18, 2026"}
-              </span>
+              {telegramConnection?.connected ? "Connected" : "Offline"}
+            </span>
+              <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-muted/60 px-4 py-2">
+              <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+              <div>
+                <span className="block text-[9px] font-black uppercase tracking-widest text-muted-foreground">
+                  System Time
+                </span>
+                <span className="text-xs font-mono font-bold">
+                  {currentTime || "—"}
+                </span>
+              </div>
             </div>
           </div>
+        </div>
 
-          {/* Telegram Connection */}
-          <Card className="rounded-xl bg-neutral-950 text-white border-2 border-black shadow-none">
-            <CardContent className="px-4 sm:px-6 space-y-6">
-              <div className="border-b border-neutral-800 pb-3 flex items-center justify-between">
-                <h2 className="text-sm font-black uppercase tracking-tighter">
-                  Telegram Connection
-                </h2>
-                {telegramConnection?.connected ? (
-                  <Wifi className="h-4 w-4 text-emerald-400" />
-                ) : (
-                  <WifiOff className="h-4 w-4 text-neutral-400" />
-                )}
-              </div>
+        {/* MAIN GRID — connection panel on the right, content on the left */}
+        <div className="grid gap-6 lg:grid-cols-3">
 
-              {isLoadingConnection ? (
-                <div className="flex flex-col items-center justify-center py-8">
-                  <Loader2 className="w-8 h-8 text-neutral-400 animate-spin mb-3" />
-                  <p className="text-sm font-bold text-neutral-400">Loading connection status...</p>
-                </div>
-              ) : telegramConnection?.connected ? (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
-                    <div>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-400 block mb-1">
-                        Status
-                      </p>
-                      <p className="text-sm font-mono text-emerald-50">CONNECTED</p>
-                    </div>
-                    <Wifi className="h-5 w-5 text-emerald-400" />
+          {/* LEFT COLUMN — groups + saved providers */}
+          <div className="space-y-6 lg:col-span-2">
+
+            {/* AVAILABLE TELEGRAM GROUPS */}
+            <Card className="overflow-hidden rounded-2xl border-border/60 shadow-sm">
+              <CardContent className="space-y-5 px-4 sm:px-6 sm:py-2">
+                <SectionHeading
+                  icon={<Users className="h-4 w-4" />}
+                  title="Available Groups / Channels"
+                  right={
+                    telegramConnection?.connected ? (
+                      <Button
+                        onClick={fetchTelegramGroups}
+                        disabled={isFetching}
+                        size="sm"
+                        className="rounded-lg bg-muted px-3 py-2 text-[10px] font-black uppercase tracking-widest text-foreground hover:bg-muted/70"
+                      >
+                        {isFetching ? (
+                          <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                        )}
+                        {isFetching ? "Fetching…" : "Fetch Groups"}
+                      </Button>
+                    ) : null
+                  }
+                />
+
+                {!telegramConnection?.connected ? (
+                  <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border/60 py-10 text-center">
+                    <WifiOff className="h-8 w-8 text-muted-foreground" />
+                    <p className="text-sm font-bold text-muted-foreground">
+                      Connect Telegram to browse your groups
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Use the connection panel on the right to get started
+                    </p>
                   </div>
-
-                  {telegramConnection.account && (
-                    <div className="p-4 bg-neutral-900/60 border border-neutral-800/80 rounded-xl space-y-2">
-                      <div className="flex items-center justify-between">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">
-                          Username
-                        </p>
-                        <p className="text-sm font-mono text-neutral-50">
-                          {telegramConnection.account.username ? `@${telegramConnection.account.username}` : 'N/A'}
-                        </p>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">
-                          First Name
-                        </p>
-                        <p className="text-sm font-mono text-neutral-50">
-                          {telegramConnection.account.firstName || 'N/A'}
-                        </p>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">
-                          Telegram ID
-                        </p>
-                        <p className="text-sm font-mono text-neutral-50">
-                          {telegramConnection.account.telegramUserId}
-                        </p>
-                      </div>
-                      {telegramConnection.connectedAt && (
-                        <div className="flex items-center justify-between">
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">
-                            Connected At
-                          </p>
-                          <p className="text-sm font-mono text-neutral-50">
-                            {new Date(telegramConnection.connectedAt).toLocaleString()}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  <div className="w-full flex flex-col sm:flex-row gap-4">
+                ) : telegramGroups.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border/60 py-10 text-center">
+                    <Radio className="h-8 w-8 text-muted-foreground" />
+                    <p className="text-sm font-bold text-muted-foreground">
+                      No groups fetched yet
+                    </p>
                     <Button
                       onClick={fetchTelegramGroups}
-                      disabled={isFetching || !telegramConnection.connected}
-                      className="flex-1 p-3 lg:p-5 bg-neutral-50 text-neutral-950 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-neutral-200 transition-colors cursor-pointer"
+                      disabled={isFetching}
+                      size="sm"
+                      className="rounded-lg bg-[#D4AF37] px-4 py-2 text-[10px] font-black uppercase tracking-widest text-black hover:bg-[#c9a227]"
                     >
                       {isFetching ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Fetching Groups...
-                        </>
+                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
                       ) : (
-                        <>
-                          <RefreshCw className="w-4 h-4 mr-2" />
-                          Fetch TG Groups
-                        </>
+                        <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
                       )}
-                    </Button>
-
-                    <Button
-                      onClick={disconnectTelegram}
-                      disabled={isConnecting}
-                      className="flex-1 p-3 lg:p-5 bg-red-500/10 text-red-400 border border-red-500/20 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-red-500/20 transition-colors cursor-pointer"
-                    >
-                      {isConnecting ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Disconnecting...
-                        </>
-                      ) : (
-                        <>
-                          <LogOut className="w-4 h-4 mr-2" />
-                          Disconnect
-                        </>
-                      )}
+                      {isFetching ? "Fetching…" : "Fetch TG Groups"}
                     </Button>
                   </div>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
-                    <div>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-red-400 block mb-1">
-                        Status
-                      </p>
-                      <p className="text-sm font-mono text-red-50">NOT CONNECTED</p>
+                ) : (
+                  <>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <input
+                        type="text"
+                        placeholder="Search by group name..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full rounded-xl border border-border/60 bg-muted/40 py-3 pl-10 pr-4 text-sm font-mono text-foreground placeholder:text-muted-foreground focus:border-[#D4AF37] focus:outline-none transition-colors"
+                      />
                     </div>
-                    <WifiOff className="h-5 w-5 text-red-400" />
-                  </div>
 
-                  <p className="text-sm text-neutral-400 text-center">
-                    Connect your Telegram account to fetch and monitor groups/channels.
-                  </p>
-
-                  {!showOtpInput && !showPasswordInput ? (
-                    <Button
-                      onClick={connectTelegram}
-                      disabled={isConnecting}
-                      className="w-full p-3 lg:p-5 bg-[#229ED9] text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-[#1d8cc2] transition-colors cursor-pointer"
-                    >
-                      {isConnecting ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Connecting...
-                        </>
+                    <div className="max-h-[420px] space-y-2.5 overflow-y-auto pr-1">
+                      {filteredGroups.length === 0 ? (
+                        <p className="py-6 text-center text-sm text-muted-foreground">
+                          No groups match “{searchTerm}”
+                        </p>
                       ) : (
-                        <>
-                          <Send className="w-4 h-4 mr-2" />
-                          Connect Telegram
-                        </>
-                      )}
-                    </Button>
-                  ) : (
-                    <div className="space-y-3">
-                      {showOtpInput && (
-                        <div className="space-y-2">
-                          <p className="text-sm text-neutral-400 text-center">
-                            Enter the OTP code sent to your Telegram app:
-                          </p>
-                          <input
-                            type="text"
-                            value={otpCode}
-                            onChange={(e) => setOtpCode(e.target.value)}
-                            placeholder="Enter OTP code"
-                            className="w-full bg-neutral-900 border-2 border-neutral-800 text-white px-4 py-3 text-sm font-mono focus:outline-none focus:border-neutral-50 transition-colors rounded-xl"
-                          />
-                        </div>
-                      )}
+                        filteredGroups.map((group) => {
+                          const saved = isProviderSaved(group.id);
+                          return (
+                            <div
+                              key={group.id}
+                              className="flex flex-col gap-3 rounded-xl border border-border/60 bg-muted/30 p-3.5 transition-colors hover:border-[#D4AF37]/30 sm:flex-row sm:items-center sm:justify-between"
+                            >
+                              <div className="flex min-w-0 items-center gap-3">
+                                {group.profile_image ? (
+                                  <img
+                                    src={group.profile_image}
+                                    alt={group.name}
+                                    className="h-10 w-10 shrink-0 rounded-xl border border-border/60 object-cover"
+                                  />
+                                ) : (
+                                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-muted">
+                                    <Users className="h-5 w-5 text-muted-foreground" />
+                                  </div>
+                                )}
+                                <div className="min-w-0">
+                                  <p className="truncate text-sm font-bold">{group.name}</p>
+                                  <div className="flex items-center gap-2 text-[10px] font-mono text-muted-foreground">
+                                    <span className="flex items-center gap-1">
+                                      <Hash className="h-2.5 w-2.5" />
+                                      {group.id}
+                                    </span>
+                                    {group.type && (
+                                      <span className="uppercase">{group.type}</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
 
-                      {showPasswordInput && (
-                        <div className="space-y-2">
-                          <p className="text-sm text-neutral-400 text-center">
-                            Enter your 2FA password:
-                          </p>
-                          <input
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            placeholder="Enter 2FA password"
-                            className="w-full bg-neutral-900 border-2 border-neutral-800 text-white px-4 py-3 text-sm font-mono focus:outline-none focus:border-neutral-50 transition-colors rounded-xl"
-                          />
-                        </div>
+                              <div className="flex shrink-0 gap-2">
+                                {saved ? (
+                                  <span className="inline-flex items-center gap-1 rounded-lg border border-blue-500/20 bg-blue-500/10 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400">
+                                    <Check className="h-3.5 w-3.5" />
+                                    Saved
+                                  </span>
+                                ) : (
+                                  <Button
+                                    onClick={() => saveProvider(group)}
+                                    disabled={isLoading}
+                                    size="sm"
+                                    className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-emerald-600 hover:bg-emerald-500/20 dark:text-emerald-400"
+                                  >
+                                    <Check className="mr-1 h-3.5 w-3.5" />
+                                    Save
+                                  </Button>
+                                )}
+                                <Button
+                                  onClick={() =>
+                                    saved
+                                      ? removeProvider(group.id)
+                                      : setTelegramGroups(telegramGroups.filter(g => g.id !== group.id))
+                                  }
+                                  disabled={isLoading}
+                                  size="sm"
+                                  className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-red-600 hover:bg-red-500/20 dark:text-red-400"
+                                >
+                                  <X className="mr-1 h-3.5 w-3.5" />
+                                  Remove
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        })
                       )}
-
-                      <div className="flex gap-2">
-                        <Button
-                          onClick={verifyTelegram}
-                          disabled={isConnecting || (!otpCode && !password)}
-                          className="flex-1 p-3 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-emerald-500/20 transition-colors cursor-pointer"
-                        >
-                          {isConnecting ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              Verifying...
-                            </>
-                          ) : (
-                            <>
-                              <Check className="w-4 h-4 mr-2" />
-                              Verify
-                            </>
-                          )}
-                        </Button>
-
-                        <Button
-                          onClick={() => {
-                            setShowOtpInput(false);
-                            setShowPasswordInput(false);
-                            setOtpCode('');
-                            setPassword('');
-                          }}
-                          disabled={isConnecting}
-                          className="flex-1 p-3 bg-red-500/10 text-red-400 border border-red-500/20 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-red-500/20 transition-colors cursor-pointer"
-                        >
-                          <X className="w-4 h-4 mr-2" />
-                          Cancel
-                        </Button>
-                      </div>
                     </div>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                  </>
+                )}
+              </CardContent>
+            </Card>
 
-          {/* Available Telegram Groups */}
-          {telegramGroups.length > 0 && (
-            <Card className="rounded-xl bg-neutral-950 text-white border-2 border-black shadow-none">
-              <CardContent className="px-4 sm:px-6 space-y-6">
-                <div className="border-b border-neutral-800 pb-3 flex items-center justify-between">
-                  <h2 className="text-sm font-black uppercase tracking-tighter">
-                    Available Telegram Groups/Channels
-                  </h2>
-                  <Users className="h-4 w-4 text-neutral-400" />
-                </div>
+            {/* SAVED PROVIDERS */}
+            <Card className="overflow-hidden rounded-2xl border-border/60 shadow-sm">
+              <CardContent className="space-y-5 px-4 sm:px-6 sm:py-2">
+                <SectionHeading
+                  icon={<ShieldCheck className="h-4 w-4" />}
+                  title="Saved Providers"
+                  right={
+                    <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                      {savedProviders.filter(p => p.isActive).length} / {savedProviders.length} active
+                    </span>
+                  }
+                />
 
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
-                  <input
-                    type="text"
-                    placeholder="Search by group name..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full bg-neutral-900 border-2 border-neutral-800 text-white pl-10 pr-4 py-3 text-sm font-mono focus:outline-none focus:border-neutral-50 transition-colors rounded-xl"
-                  />
-                </div>
-
-                <div className="space-y-3 overflow-x-auto">
-                  {telegramGroups
-                    .filter(group => 
-                      group.name.toLowerCase().includes(searchTerm.toLowerCase())
-                    )
-                    .map((group) => {
-                    const saved = isProviderSaved(group.id);
-                    return (
-                      <div 
-                        key={group.id}
-                        className="flex items-center justify-between p-4 bg-neutral-900/60 border border-neutral-800/80 rounded-xl min-w-[320px]"
+                {isLoadingProviders ? (
+                  <div className="flex flex-col items-center justify-center py-12">
+                    <Loader2 className="mb-4 h-10 w-10 animate-spin text-muted-foreground" />
+                    <p className="text-sm font-bold text-muted-foreground">Loading providers...</p>
+                  </div>
+                ) : savedProviders.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-border/60 py-12 text-center">
+                    <AlertCircle className="mb-2 h-10 w-10 text-muted-foreground" />
+                    <p className="text-sm font-bold text-muted-foreground">No providers saved yet</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      Fetch and save Telegram groups to get started
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2.5">
+                    {savedProviders.map((provider) => (
+                      <div
+                        key={provider._id}
+                        className="flex flex-col gap-3 rounded-xl border border-border/60 bg-muted/30 p-3.5 sm:flex-row sm:items-center sm:justify-between"
                       >
-                        <div className="flex items-center gap-4">
-                          {group.profile_image ? (
-                            <img 
-                              src={group.profile_image} 
-                              alt={group.name}
-                              className="w-10 h-10 rounded-xl object-cover border border-neutral-700"
+                        <div className="flex min-w-0 items-center gap-3">
+                          {provider.profileImage ? (
+                            <img
+                              src={provider.profileImage}
+                              alt={provider.groupName}
+                              className="h-10 w-10 shrink-0 rounded-xl border border-border/60 object-cover"
                             />
                           ) : (
-                            <div className="w-10 h-10 bg-neutral-800 border border-neutral-700 flex items-center justify-center rounded-full">
-                              <Users className="w-5 h-5 text-neutral-400" />
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-muted">
+                              <Users className="h-5 w-5 text-muted-foreground" />
                             </div>
                           )}
-                          <div>
-                            <p className="text-sm font-bold text-neutral-50">{group.name}</p>
-                            <p className="text-[10px] font-mono text-neutral-400">ID: {group.id}</p>
-                            {group.type && (
-                              <p className="text-[10px] font-mono text-neutral-500 uppercase">{group.type}</p>
-                            )}
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-bold">{provider.groupName}</p>
+                            <span className="flex items-center gap-1 text-[10px] font-mono text-muted-foreground">
+                              <Hash className="h-2.5 w-2.5" />
+                              {provider.groupId}
+                            </span>
                           </div>
                         </div>
-                        <div className="flex gap-2">
-                          {saved ? (
-                            <Button
-                              disabled={true}
-                              className="bg-blue-500/20 rounded-xl text-blue-300 border border-blue-500/30 font-black text-[10px] uppercase tracking-widest px-4 py-2"
-                            >
-                              <Check className="w-4 h-4 mr-1" />
-                              Saved
-                            </Button>
-                          ) : (
-                            <Button
-                              onClick={() => saveProvider(group)}
-                              disabled={isLoading}
-                              className="bg-emerald-500/10 rounded-xl text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 font-black text-[10px] uppercase tracking-widest px-4 py-2"
-                            >
-                              <Check className="w-4 h-4 mr-1" />
-                              Save
-                            </Button>
-                          )}
-                          <Button
-                            onClick={() => saved ? removeProvider(group.id) : setTelegramGroups(telegramGroups.filter(g => g.id !== group.id))}
-                            disabled={isLoading}
-                            className="bg-red-500/10 rounded-xl text-red-400 border border-red-500/20 hover:bg-red-500/20 font-black text-[10px] uppercase tracking-widest px-4 py-2"
+
+                        <div className="flex shrink-0 items-center gap-4">
+                          <span
+                            className={`rounded-full border px-2.5 py-1 text-[9px] font-black uppercase tracking-widest ${
+                              provider.isActive
+                                ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                                : "border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-400"
+                            }`}
                           >
-                            <X className="w-4 h-4 mr-1" />
-                            {saved ? 'Remove' : 'Remove'}
+                            {provider.isActive ? "Active" : "Inactive"}
+                          </span>
+
+                          <ToggleRow
+                            label={`Toggle ${provider.groupName}`}
+                            checked={provider.isActive}
+                            disabled={isLoading}
+                            color="emerald"
+                            onChange={() => toggleProviderStatus(provider._id, provider.isActive)}
+                          />
+
+                          <Button
+                            onClick={() => removeProvider(provider.groupId)}
+                            disabled={isLoading}
+                            size="sm"
+                            className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-red-600 hover:bg-red-500/20 dark:text-red-400"
+                          >
+                            <X className="mr-1 h-3.5 w-3.5" />
+                            Remove
                           </Button>
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
-          )}
+          </div>
 
-          {/* Saved Providers */}
-          <Card className="rounded-xl bg-neutral-950 text-white border-2 border-black shadow-none">
-            <CardContent className="px-4 sm:px-6 space-y-6">
-              <div className="border-b border-neutral-800 pb-3 flex items-center justify-between">
-                <h2 className="text-sm font-black uppercase tracking-tighter">
-                  Saved Providers
-                </h2>
-                <Users className="h-4 w-4 text-emerald-400" />
-              </div>
-              
-              {isLoadingProviders ? (
-                <div className="flex flex-col items-center justify-center py-12">
-                  <Loader2 className="w-12 h-12 text-neutral-400 animate-spin mb-4" />
-                  <p className="text-sm font-bold text-neutral-400">Loading providers...</p>
-                </div>
-              ) : savedProviders.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 border border-dashed border-neutral-800 rounded-xl">
-                  <AlertCircle className="w-12 h-12 text-neutral-600 mb-4" />
-                  <p className="text-sm font-bold text-neutral-400">No providers saved yet</p>
-                  <p className="text-[10px] text-neutral-500 mt-1">Fetch and save Telegram groups to get started</p>
-                </div>
-              ) : (
-                <div className="space-y-3 overflow-x-auto">
-                  {savedProviders.map((provider) => (
-                    <div 
-                      key={provider._id}
-                      className="flex items-center justify-between p-4 bg-neutral-900/60 border border-neutral-800/80 rounded-xl min-w-[320px]"
-                    >
-                      <div className="flex items-center gap-4">
-                        {provider.profileImage ? (
-                          <img 
-                            src={provider.profileImage} 
-                            alt={provider.groupName}
-                            className="w-10 h-10 rounded-xl object-cover border border-neutral-700"
-                          />
-                        ) : (
-                          <div className="w-10 h-10 bg-neutral-800 border border-neutral-700 flex items-center justify-center rounded-full">
-                            <Users className="w-5 h-5 text-neutral-400" />
+          {/* RIGHT COLUMN — Telegram connection panel */}
+          <div className="lg:col-span-1">
+            <Card className="sticky top-6 overflow-hidden rounded-2xl border-border/60 shadow-sm">
+              <CardContent className="space-y-5 px-4 sm:px-6 sm:py-2">
+                <SectionHeading
+                  icon={telegramConnection?.connected ? <Wifi className="h-4 w-4" /> : <WifiOff className="h-4 w-4" />}
+                  title="Telegram Connection"
+                />
+
+                {isLoadingConnection ? (
+                  <div className="flex flex-col items-center justify-center py-10">
+                    <Loader2 className="mb-3 h-8 w-8 animate-spin text-muted-foreground" />
+                    <p className="text-sm font-bold text-muted-foreground">Checking status...</p>
+                  </div>
+                ) : telegramConnection?.connected ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-emerald-600 dark:text-emerald-400">
+                      <div>
+                        <p className="mb-1 text-[10px] font-black uppercase tracking-widest">Status</p>
+                        <p className="font-mono text-sm">CONNECTED</p>
+                      </div>
+                      <Wifi className="h-5 w-5" />
+                    </div>
+
+                    {telegramConnection.account && (
+                      <div className="space-y-1 rounded-xl border border-border/60 bg-muted/40 p-4">
+                        <div className="flex items-center justify-between py-1.5">
+                          <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                            <UserCircle2 className="h-3 w-3" /> Username
+                          </span>
+                          <span className="font-mono text-sm">
+                            {telegramConnection.account.username ? `@${telegramConnection.account.username}` : 'N/A'}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between border-t border-border/50 py-1.5">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                            First Name
+                          </span>
+                          <span className="font-mono text-sm">
+                            {telegramConnection.account.firstName || 'N/A'}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between border-t border-border/50 py-1.5">
+                          <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                            <Hash className="h-3 w-3" /> Telegram ID
+                          </span>
+                          <span className="font-mono text-sm">
+                            {telegramConnection.account.telegramUserId}
+                          </span>
+                        </div>
+                        {telegramConnection.connectedAt && (
+                          <div className="flex items-center justify-between border-t border-border/50 py-1.5">
+                            <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                              <Clock className="h-3 w-3" /> Connected At
+                            </span>
+                            <span className="font-mono text-xs">
+                              {new Date(telegramConnection.connectedAt).toLocaleString()}
+                            </span>
                           </div>
                         )}
-                        <div>
-                          <p className="text-sm font-bold text-neutral-50">{provider.groupName}</p>
-                          <p className="text-[10px] font-mono text-neutral-400">ID: {provider.groupId}</p>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 gap-2.5">
+                      <Button
+                        onClick={fetchTelegramGroups}
+                        disabled={isFetching}
+                        className="w-full cursor-pointer rounded-xl bg-muted p-5 text-xs font-black uppercase tracking-widest text-foreground transition-colors hover:bg-muted/70"
+                      >
+                        {isFetching ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Fetching Groups...
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="mr-2 h-4 w-4" />
+                            Fetch TG Groups
+                          </>
+                        )}
+                      </Button>
+
+                      <Button
+                        onClick={disconnectTelegram}
+                        disabled={isConnecting}
+                        className="w-full cursor-pointer rounded-xl border border-red-500/20 bg-red-500/10 p-5 text-xs font-black uppercase tracking-widest text-red-600 transition-colors hover:bg-red-500/20 dark:text-red-400"
+                      >
+                        {isConnecting ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Disconnecting...
+                          </>
+                        ) : (
+                          <>
+                            <LogOut className="mr-2 h-4 w-4" />
+                            Disconnect
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-red-600 dark:text-red-400">
+                      <div>
+                        <p className="mb-1 text-[10px] font-black uppercase tracking-widest">Status</p>
+                        <p className="font-mono text-sm">NOT CONNECTED</p>
+                      </div>
+                      <WifiOff className="h-5 w-5" />
+                    </div>
+
+                    <p className="text-center text-sm text-muted-foreground">
+                      Connect your Telegram account to fetch and monitor groups/channels.
+                    </p>
+
+                    {!showOtpInput && !showPasswordInput ? (
+                      <Button
+                        onClick={connectTelegram}
+                        disabled={isConnecting}
+                        className="w-full cursor-pointer rounded-xl bg-[#D4AF37] p-3 text-xs font-black uppercase tracking-widest text-black transition-colors hover:bg-[#c9a227]"
+                      >
+                        {isConnecting ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Connecting...
+                          </>
+                        ) : (
+                          <>
+                            <Send className="mr-2 h-4 w-4" />
+                            Connect Telegram
+                          </>
+                        )}
+                      </Button>
+                    ) : (
+                      <div className="space-y-3">
+                        {showOtpInput && (
+                          <div className="space-y-2">
+                            <p className="text-center text-sm text-muted-foreground">
+                              Enter the OTP code sent to your Telegram app:
+                            </p>
+                            <input
+                              type="text"
+                              value={otpCode}
+                              onChange={(e) => setOtpCode(e.target.value)}
+                              placeholder="Enter OTP code"
+                              className="w-full rounded-xl border border-border/60 bg-muted/40 px-4 py-3 text-sm font-mono text-foreground transition-colors focus:border-[#D4AF37] focus:outline-none"
+                            />
+                          </div>
+                        )}
+
+                        {showPasswordInput && (
+                          <div className="space-y-2">
+                            <p className="text-center text-sm text-muted-foreground">
+                              Enter your 2FA password:
+                            </p>
+                            <input
+                              type="password"
+                              value={password}
+                              onChange={(e) => setPassword(e.target.value)}
+                              placeholder="Enter 2FA password"
+                              className="w-full rounded-xl border border-border/60 bg-muted/40 px-4 py-3 text-sm font-mono text-foreground transition-colors focus:border-[#D4AF37] focus:outline-none"
+                            />
+                          </div>
+                        )}
+
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={verifyTelegram}
+                            disabled={isConnecting || (!otpCode && !password)}
+                            className="flex-1 cursor-pointer rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-xs font-black uppercase tracking-widest text-emerald-600 transition-colors hover:bg-emerald-500/20 dark:text-emerald-400"
+                          >
+                            {isConnecting ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Verifying...
+                              </>
+                            ) : (
+                              <>
+                                <Check className="mr-2 h-4 w-4" />
+                                Verify
+                              </>
+                            )}
+                          </Button>
+
+                          <Button
+                            onClick={() => {
+                              setShowOtpInput(false);
+                              setShowPasswordInput(false);
+                              setOtpCode('');
+                              setPassword('');
+                            }}
+                            disabled={isConnecting}
+                            className="flex-1 cursor-pointer rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-xs font-black uppercase tracking-widest text-red-600 transition-colors hover:bg-red-500/20 dark:text-red-400"
+                          >
+                            <X className="mr-2 h-4 w-4" />
+                            Cancel
+                          </Button>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className={`text-[10px] font-black uppercase px-2 py-0.5 border rounded-full ${
-                          provider.isActive
-                            ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                            : "bg-red-500/10 text-red-400 border-red-500/20"
-                        }`}>
-                          {provider.isActive ? 'Active' : 'Inactive'}
-                        </span>
-                        <Button
-                          onClick={() => toggleProviderStatus(provider._id, provider.isActive)}
-                          disabled={isLoading}
-                          className={`border rounded-xl font-black text-[10px] uppercase tracking-widest px-4 py-2 ${
-                            provider.isActive
-                              ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/20 hover:bg-yellow-500/20"
-                              : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20"
-                          }`}
-                        >
-                          {provider.isActive ? 'Disable' : 'Enable'}
-                        </Button>
-                        <Button
-                          onClick={() => removeProvider(provider.groupId)}
-                          disabled={isLoading}
-                          className="bg-red-500/10 text-red-400 border rounded-xl border-red-500/20 hover:bg-red-500/20 font-black text-[10px] uppercase tracking-widest px-4 py-2"
-                        >
-                          <X className="w-4 h-4 mr-1" />
-                          Remove
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </main>
     </div>

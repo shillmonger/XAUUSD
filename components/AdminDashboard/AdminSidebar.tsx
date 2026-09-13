@@ -46,7 +46,7 @@ export default function AdminSidebar({
   const [countdown, setCountdown] = useState(10);
 
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
-    "Account Settings": true,
+    "Bot Settings": true,
   });
 
   const basePath = "/AdminDashboard";
@@ -68,27 +68,22 @@ export default function AdminSidebar({
     // === MAIN ===
     { name: "Overview", icon: LayoutDashboard, href: `${basePath}/dashboard` },
     { name: "TG Provider", icon: Send, href: `${basePath}/providers` },
-    { name: "Subscriptions", icon: BadgeCheck, href: `${basePath}/subscription` },
-    { name: "MT5 Accounts", icon: Users, href: `${basePath}/mt5-accounts` },
+    { name: "Bot Subscriptions", icon: BadgeCheck, href: `${basePath}/subscription` },
+    { name: "Deriv Accounts", icon: Users, href: `${basePath}/deriv-accounts` },
     { name: "Trades Actions", icon: History, href: `${basePath}/trades-actions` },
     { name: "Copy jobs", icon: Tags, href: `${basePath}/copy-jobs` },
     { name: "Master trades", icon: Server, href: `${basePath}/master-trades` },
     { name: "Trades activity", icon: ScreenShare, href: `${basePath}/trade-activity` },
-    { name: "Lot size settings", icon: Scale, href: `${basePath}/lot-size` },
-    { name: "Stop lose settings", icon: ShieldCheck, href: `${basePath}/stop-loss` },
-    { name: "limits settings", icon: CircleGauge, href: `${basePath}/position-limits` },
+    {
+      name: "Bot Settings",
+      icon: Settings,
+      children: [
+        { name: "Position Limits", icon: CircleGauge, href: `${basePath}/position-limits` },
+        { name: "Lot size Config", icon: Scale, href: `${basePath}/lot-size` },
+        { name: "Stop lose Config", icon: ShieldCheck, href: `${basePath}/stop-loss` },
+      ],
+    },
     { name: "Switch to User", icon: Lock, href: `/UserDashboard/dashboard` },
-    // {
-    //   name: "Account Settings",
-    //   icon: Settings,
-    //   children: [
-    //     {
-    //       name: "Switch to User",
-    //       icon: Lock,
-    //       href: `/UserDashboard/dashboard`,
-    //     },
-    //   ],
-    // },
   ];
 
   useEffect(() => {

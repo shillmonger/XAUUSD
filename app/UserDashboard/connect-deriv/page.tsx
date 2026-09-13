@@ -725,7 +725,7 @@ export default function ConnectDerivPage() {
                       </p>
                     </div>
 
-                    <div className="rounded-xl border border-[#D4AF37]/25 bg-[#D4AF37]/5 p-3.5 shadow-[0_0_20px_-8px_rgba(212,175,55,0.35)]">
+                    <div className="rounded-xl border border-[#D4AF37]/25 bg-[#D4AF37]/5 p-3.5">
                       <p className="text-[10px] font-black uppercase tracking-widest text-[#D4AF37]">
                         CURRENT BALANCE
                       </p>
@@ -873,9 +873,9 @@ export default function ConnectDerivPage() {
                     </div>
                     <Button
                       size="sm"
-                      className="w-full rounded-lg bg-[#D4AF37] py-2.5 text-xs font-black uppercase tracking-wider text-black hover:bg-[#c9a227] shadow-md shadow-[#D4AF37]/20 sm:w-auto"
+                      className="w-full rounded-full cursor-pointer bg-[#D4AF37] py-4 text-xs font-black uppercase tracking-wider text-black hover:bg-[#c9a227] shadow-md shadow-[#D4AF37]/20 sm:w-auto"
                     >
-                      <Crown className="mr-1.5 h-4 w-4" /> View Bot Plans
+                      <Crown className="h-5 w-5" /> View Bot Plans
                     </Button>
                   </div>
                 </Card>

@@ -20,16 +20,16 @@ export default function PositionLimitsPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [selectedRule, setSelectedRule] = useState<PositionLimitRule | null>(null);
-  
+
   // Edit mode state
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
-  
+
   // Form state
   const [formData, setFormData] = useState({
-    min_balance: '',
-    max_balance: '',
-    max_positions: ''
+    min_balance: "",
+    max_balance: "",
+    max_positions: "",
   });
   const [formLoading, setFormLoading] = useState(false);
 
@@ -37,22 +37,23 @@ export default function PositionLimitsPage() {
     fetchPositionLimits();
   }, []);
 
-  const fetchPositionLimits = async () => {
-    try {
-      const response = await fetch('/api/admin/position-limits');
-      const data = await response.json();
-      if (response.ok) {
-        setPositionLimits(data.positionLimits);
-      } else {
-        toast.error('Failed to fetch position limits');
-      }
-    } catch (error) {
-      console.error('Fetch error:', error);
-      toast.error('Failed to fetch position limits');
-    } finally {
-      setLoading(false);
+const fetchPositionLimits = async () => {
+  try {
+    const response = await fetch("/api/admin/position-limits");
+    const data = await response.json();
+
+    if (response.ok) {
+      setPositionLimits(data.positionLimits || []);
+    } else {
+      toast.error("Failed to fetch position limits");
     }
-  };
+  } catch (error) {
+    console.error("Fetch error:", error);
+    toast.error("Failed to fetch position limits");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleDelete = (rule: PositionLimitRule) => {
     setSelectedRule(rule);
@@ -65,7 +66,7 @@ export default function PositionLimitsPage() {
     setFormData({
       min_balance: rule.min_balance.toString(),
       max_balance: rule.max_balance.toString(),
-      max_positions: rule.max_positions.toString()
+      max_positions: rule.max_positions.toString(),
     });
   };
 
@@ -73,9 +74,9 @@ export default function PositionLimitsPage() {
     setIsEditMode(false);
     setEditingRuleId(null);
     setFormData({
-      min_balance: '',
-      max_balance: '',
-      max_positions: ''
+      min_balance: "",
+      max_balance: "",
+      max_positions: "",
     });
   };
 
@@ -86,20 +87,20 @@ export default function PositionLimitsPage() {
 
     try {
       const response = await fetch(`/api/admin/position-limits/${selectedRule._id}`, {
-        method: 'DELETE',
+        method: "DELETE",
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        toast.success('Position limit rule deleted successfully');
+        toast.success("Position limit rule deleted successfully");
         fetchPositionLimits();
       } else {
-        toast.error(data.error || 'Failed to delete rule');
+        toast.error(data.error || "Failed to delete rule");
       }
     } catch (error) {
-      console.error('Delete error:', error);
-      toast.error('Failed to delete rule');
+      console.error("Delete error:", error);
+      toast.error("Failed to delete rule");
     } finally {
       setActionLoading(null);
       setShowConfirmModal(false);
@@ -109,41 +110,41 @@ export default function PositionLimitsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const minBalance = parseFloat(formData.min_balance);
     const maxBalance = parseFloat(formData.max_balance);
     const maxPositions = parseFloat(formData.max_positions);
 
     if (isNaN(minBalance) || isNaN(maxBalance) || isNaN(maxPositions)) {
-      toast.error('Please enter valid numbers');
+      toast.error("Please enter valid numbers");
       return;
     }
 
     if (minBalance >= maxBalance) {
-      toast.error('Minimum balance must be less than maximum balance');
+      toast.error("Minimum balance must be less than maximum balance");
       return;
     }
 
     if (maxPositions < 1) {
-      toast.error('Max positions must be at least 1');
+      toast.error("Max positions must be at least 1");
       return;
     }
 
     setFormLoading(true);
 
     try {
-      let url = '/api/admin/position-limits';
-      let method = 'POST';
+      let url = "/api/admin/position-limits";
+      let method = "POST";
 
       if (isEditMode && editingRuleId) {
         url = `/api/admin/position-limits/${editingRuleId}`;
-        method = 'PUT';
+        method = "PUT";
       }
 
       const response = await fetch(url, {
         method,
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           min_balance: minBalance,
@@ -155,253 +156,288 @@ export default function PositionLimitsPage() {
       const data = await response.json();
 
       if (response.ok) {
-        toast.success(isEditMode ? 'Position limit rule updated successfully' : 'Position limit rule created successfully');
+        toast.success(
+          isEditMode
+            ? "Position limit rule updated successfully"
+            : "Position limit rule created successfully"
+        );
         handleCancelEdit();
         fetchPositionLimits();
       } else {
-        toast.error(data.error || 'Failed to save rule');
+        toast.error(data.error || "Failed to save rule");
       }
     } catch (error) {
-      console.error('Save error:', error);
-      toast.error('Failed to save rule');
+      console.error("Save error:", error);
+      toast.error("Failed to save rule");
     } finally {
       setFormLoading(false);
     }
   };
 
   return (
-    <div className="bg-white text-neutral-950 font-sans">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-black uppercase tracking-tighter mb-2">
-            Position Limits Management
-          </h1>
-          <p className="text-neutral-500 text-sm">
-            Create and manage position limit rules based on account balance
-          </p>
-        </div>
+    <div className="min-h-screen flex flex-col bg-background text-foreground font-sans">
+      <main className="flex-grow flex justify-start">
+        <div className="w-full max-w-7xl space-y-5 py-5">
+          {/* Welcome Section */}
+          <div className="mb-8">
+            <h1 className="text-2xl font-black uppercase tracking-tighter mb-2">
+              Open Position Limits
+            </h1>
+            <p className="text-muted-foreground text-sm">
+              Create and manage Open Position limits rules based on account balance
+            </p>
+          </div>
 
-        {/* Create Form */}
-        <div className="bg-neutral-950 border-2 border-black rounded-xl p-6 mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-black uppercase tracking-tighter flex items-center gap-2">
-              {isEditMode ? (
-                <>
-                  <Edit2 className="w-5 h-5" />
-                  Edit Rule
-                </>
-              ) : (
-                <>
-                  <Plus className="w-5 h-5" />
-                  Create New Rule
-                </>
-              )}
-            </h2>
-            {isEditMode && (
-              <button
-                type="button"
-                onClick={handleCancelEdit}
-                className="cursor-pointer p-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-400 hover:text-white border border-neutral-700 transition-colors rounded-xl"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs font-black uppercase tracking-wider text-neutral-500 mb-2">
-                Minimum Balance
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                value={formData.min_balance}
-                onChange={(e) => setFormData({ ...formData, min_balance: e.target.value })}
-                className="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-white transition-colors"
-                placeholder="10"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-black uppercase tracking-wider text-neutral-500 mb-2">
-                Maximum Balance
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                value={formData.max_balance}
-                onChange={(e) => setFormData({ ...formData, max_balance: e.target.value })}
-                className="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-white transition-colors"
-                placeholder="49"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-black uppercase tracking-wider text-neutral-500 mb-2">
-                Max Positions
-              </label>
-              <input
-                type="number"
-                step="1"
-                value={formData.max_positions}
-                onChange={(e) => setFormData({ ...formData, max_positions: e.target.value })}
-                className="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-white transition-colors"
-                placeholder="1"
-                required
-              />
-            </div>
-            <div className="md:col-span-3">
-              <button
-                type="submit"
-                disabled={formLoading}
-                className="cursor-pointer font-black font-mono text-xs uppercase tracking-wider py-3 px-6 rounded-xl transition-all duration-300 flex items-center justify-center gap-2 bg-white hover:bg-neutral-200 text-neutral-950 border border-white disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {formLoading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Creating...
-                  </>
-                ) : (
-                  <>
-                    <Plus className="w-4 h-4" />
-                    Create Rule
-                  </>
-                )}
-              </button>
-            </div>
-          </form>
-        </div>
-
-        {/* Rules Table */}
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-neutral-500" />
-          </div>
-        ) : positionLimits.length === 0 ? (
-          <div className="text-center py-12 text-neutral-500">
-            No position limit rules found. Create your first rule above.
-          </div>
-        ) : (
-          <div className="bg-neutral-950 border-2 border-black rounded-xl overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-neutral-800 bg-neutral-950">
-                    <th className="text-left p-4 text-[10px] font-black uppercase tracking-widest text-neutral-400">
-                      Minimum Balance
-                    </th>
-                    <th className="text-left p-4 text-[10px] font-black uppercase tracking-widest text-neutral-500">
-                      Maximum Balance
-                    </th>
-                    <th className="text-left p-4 text-[10px] font-black uppercase tracking-widest text-neutral-500">
-                      Max Positions
-                    </th>
-                    <th className="text-left p-4 text-[10px] font-black uppercase tracking-widest text-neutral-500">
-                      Status
-                    </th>
-                    <th className="text-left p-4 text-[10px] font-black uppercase tracking-widest text-neutral-500">
-                      Created
-                    </th>
-                    <th className="text-left p-4 text-[10px] font-black uppercase tracking-widest text-neutral-500">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {positionLimits.map((rule) => (
-                    <tr key={rule._id} className="border-b border-neutral-800 hover:bg-neutral-800/50 transition-colors">
-                      <td className="p-4 text-sm font-mono text-emerald-400">${rule.min_balance}</td>
-                      <td className="p-4 text-sm font-mono text-emerald-400">${rule.max_balance}</td>
-                      <td className="p-4 text-sm font-mono text-white">{rule.max_positions}</td>
-                      <td className="p-4">
-                        <span className={`text-[9px] px-2 py-1 font-black border rounded-full ${
-                          rule.active 
-                            ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' 
-                            : 'bg-neutral-500/10 text-neutral-500 border-neutral-500/20'
-                        }`}>
-                          {rule.active ? 'ACTIVE' : 'INACTIVE'}
-                        </span>
-                      </td>
-                      <td className="p-4 text-sm text-neutral-400">
-                        {new Date(rule.createdAt).toLocaleDateString()}
-                      </td>
-                      <td className="p-4">
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleEdit(rule)}
-                            className="cursor-pointer p-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-400 hover:text-white transition-colors rounded-xl"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(rule)}
-                            disabled={actionLoading === rule._id}
-                            className="cursor-pointer p-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 transition-colors disabled:opacity-50 rounded-xl"
-                          >
-                            {actionLoading === rule._id ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <Trash2 className="w-4 h-4" />
-                            )}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Confirmation Modal */}
-      {showConfirmModal && selectedRule && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
-          onClick={() => setShowConfirmModal(false)}
-        >
-          <div
-            className="bg-neutral-950 border-2 border-black rounded-xl shadow-none w-full max-w-md relative"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-6 space-y-4">
-              <div className="flex items-center gap-3">
-                <AlertTriangle className="w-6 h-6 text-amber-400" />
-                <h2 className="text-xl font-black uppercase tracking-tighter">
-                  Confirm Delete
+          {/* Create / Edit Form */}
+          <div className="rounded-xl bg-zinc-50 text-zinc-950 border border-border/50 shadow-sm mb-8 dark:bg-zinc-900/50 dark:text-zinc-50">
+            <div className="px-4 sm:px-6 py-6 space-y-6">
+              <div className="border-b border-border/50 pb-3 flex items-center justify-between">
+                <h2 className="text-sm font-bold uppercase tracking-wider flex items-center">
+                  {isEditMode ? (
+                    <>
+                      <Edit2 className="w-4 h-4 mr-2" />
+                      Edit Rule
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create New Rule
+                    </>
+                  )}
                 </h2>
+                {isEditMode && (
+                  <button
+                    type="button"
+                    onClick={handleCancelEdit}
+                    className="cursor-pointer p-2 bg-zinc-200 hover:bg-zinc-300 text-zinc-600 border border-zinc-200 rounded-lg dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-400 dark:border-zinc-700 transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
               </div>
-              <p className="text-sm text-neutral-300">
-                Are you sure you want to delete this position limit rule?
-              </p>
-              <div className="bg-neutral-900 border border-neutral-800 p-3 rounded-xl">
-                <p className="text-xs text-neutral-400">
-                  <span className="font-bold text-white">Balance:</span> ${selectedRule.min_balance} - ${selectedRule.max_balance}
-                </p>
-                <p className="text-xs text-neutral-400">
-                  <span className="font-bold text-white">Max Positions:</span> {selectedRule.max_positions}
-                </p>
-              </div>
-              <div className="flex gap-3 pt-4">
-                <button
-                  onClick={() => setShowConfirmModal(false)}
-                  className="flex-1 cursor-pointer font-black font-mono text-xs uppercase tracking-wider py-3 rounded-xl transition-all duration-300 flex items-center justify-center bg-neutral-800 hover:bg-neutral-700 text-white border border-neutral-700"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={confirmDelete}
-                  className="flex-1 cursor-pointer font-black font-mono text-xs uppercase tracking-wider py-3 rounded-xl transition-all duration-300 flex items-center justify-center bg-red-500 hover:bg-red-600 text-white border border-red-500"
-                >
-                  Delete
-                </button>
-              </div>
+              <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">
+                    Minimum Balance
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={formData.min_balance}
+                    onChange={(e) =>
+                      setFormData({ ...formData, min_balance: e.target.value })
+                    }
+                    className="w-full bg-zinc-50 border border-border/50 text-zinc-950 px-4 py-3 text-sm font-mono focus:outline-none focus:border-[#D4AF37] transition-colors rounded-xl dark:bg-zinc-900/50 dark:text-zinc-50"
+                    placeholder="10"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">
+                    Maximum Balance
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={formData.max_balance}
+                    onChange={(e) =>
+                      setFormData({ ...formData, max_balance: e.target.value })
+                    }
+                    className="w-full bg-zinc-50 border border-border/50 text-zinc-950 px-4 py-3 text-sm font-mono focus:outline-none focus:border-[#D4AF37] transition-colors rounded-xl dark:bg-zinc-900/50 dark:text-zinc-50"
+                    placeholder="49"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">
+                    Max Positions
+                  </label>
+                  <input
+                    type="number"
+                    step="1"
+                    value={formData.max_positions}
+                    onChange={(e) =>
+                      setFormData({ ...formData, max_positions: e.target.value })
+                    }
+                    className="w-full bg-zinc-50 border border-border/50 text-zinc-950 px-4 py-3 text-sm font-mono focus:outline-none focus:border-[#D4AF37] transition-colors rounded-xl dark:bg-zinc-900/50 dark:text-zinc-50"
+                    placeholder="1"
+                    required
+                  />
+                </div>
+                <div className="md:col-span-3">
+                  <button
+                    type="submit"
+                    disabled={formLoading}
+                    className="w-full p-3 bg-[#D4AF37] text-black rounded-xl font-black text-xs uppercase tracking-widest hover:bg-[#c9a227] transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                  >
+                    {formLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        {isEditMode ? "Updating..." : "Creating..."}
+                      </>
+                    ) : (
+                      <>
+                        {isEditMode ? (
+                          <>
+                            <Edit2 className="w-4 h-4 mr-2" />
+                            Update Rule
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="w-4 h-4 mr-2" />
+                            Create Rule
+                          </>
+                        )}
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
+
+          {/* Rules Table */}
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-12">
+              <Loader2 className="w-12 h-12 text-muted-foreground animate-spin mb-4" />
+              <p className="text-sm font-bold text-muted-foreground">
+                Loading rules...
+              </p>
+            </div>
+          ) : positionLimits.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 border border-dashed border-border/50 rounded-xl">
+              <p className="text-sm font-bold text-muted-foreground">
+                No position limit rules found
+              </p>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Create your first rule above
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-xl bg-zinc-50 text-zinc-950 border border-border/50 shadow-sm dark:bg-zinc-900/50 dark:text-zinc-50">
+              <div className="px-4 sm:px-6 py-6 space-y-6">
+                <div className="border-b border-border/50 pb-3 flex items-center justify-between">
+                  <h2 className="text-sm font-bold uppercase tracking-wider">
+                    Position Limit Rules
+                  </h2>
+                </div>
+                <div className="space-y-3">
+                  {positionLimits.map((rule) => (
+                    <div
+                      key={rule._id}
+                      className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-zinc-50 text-zinc-950 border border-border/50 rounded-xl dark:bg-zinc-900/50 dark:text-zinc-50"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div>
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">
+                            Balance Range
+                          </p>
+                          <p className="text-sm font-mono text-emerald-600 dark:text-emerald-400">
+                            ${rule.min_balance} - ${rule.max_balance}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div>
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">
+                            Max Positions
+                          </p>
+                          <p className="text-sm font-mono">
+                            {rule.max_positions}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                        <span
+                          className={`text-[10px] font-black uppercase px-2.5 py-1 border rounded-full ${
+                            rule.active
+                              ? "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-400 dark:border-emerald-900/50"
+                              : "bg-red-100 text-red-700 border-red-200 dark:bg-red-950/50 dark:text-red-400 dark:border-red-900/50"
+                          }`}
+                        >
+                          {rule.active ? "Active" : "Inactive"}
+                        </span>
+                        <button
+                          onClick={() => handleEdit(rule)}
+                          className="flex-1 sm:flex-none cursor-pointer flex items-center justify-center bg-zinc-200 text-zinc-700 rounded-lg border border-zinc-200 hover:bg-zinc-300 font-black text-[10px] uppercase tracking-widest px-4 py-2 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700 dark:hover:bg-zinc-700 transition-colors"
+                        >
+                          <Edit2 className="w-4 h-4 mr-1" />
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(rule)}
+                          disabled={actionLoading === rule._id}
+                          className="flex-1 sm:flex-none cursor-pointer flex items-center justify-center bg-red-100 text-red-700 border rounded-lg border-red-200 hover:bg-red-200 font-black text-[10px] uppercase tracking-widest px-4 py-2 dark:bg-red-950/50 dark:text-red-400 dark:border-red-900/50 dark:hover:bg-red-950/70 transition-colors disabled:opacity-50"
+                        >
+                          {actionLoading === rule._id ? (
+                            <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                          ) : (
+                            <Trash2 className="w-4 h-4 mr-1" />
+                          )}
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Confirmation Modal */}
+          {showConfirmModal && selectedRule && (
+            <div
+              className="fixed inset-0 z-500 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+              onClick={() => setShowConfirmModal(false)}
+            >
+              <div
+                className="rounded-xl bg-zinc-50 text-zinc-950 border border-border/50 shadow-none w-full max-w-md relative dark:bg-zinc-900/50 dark:text-zinc-50"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="px-4 sm:px-6 py-6 space-y-6">
+                  <div className="border-b border-border/50 pb-3 flex items-center gap-3">
+                    <AlertTriangle className="w-5 h-5 text-amber-400" />
+                    <h2 className="text-sm font-bold uppercase tracking-wider">
+                      Confirm Delete
+                    </h2>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Are you sure you want to delete this position limit rule?
+                  </p>
+                  <div className="p-4 bg-zinc-50 text-zinc-950 border border-border/50 rounded-xl dark:bg-zinc-900/50 dark:text-zinc-50">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">
+                      Balance Range
+                    </p>
+                    <p className="text-sm font-mono text-emerald-600 dark:text-emerald-400 mb-2">
+                      ${selectedRule.min_balance} - ${selectedRule.max_balance}
+                    </p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">
+                      Max Positions
+                    </p>
+                    <p className="text-sm font-mono">
+                      {selectedRule.max_positions}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setShowConfirmModal(false)}
+                      className="flex-1 p-3 bg-zinc-200 text-zinc-700 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-zinc-300 transition-colors cursor-pointer dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={confirmDelete}
+                      className="flex-1 p-3 bg-red-100 text-red-700 border border-red-200 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-red-200 transition-colors cursor-pointer dark:bg-red-950/50 dark:text-red-400 dark:border-red-900/50 dark:hover:bg-red-950/70"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
-      )}
+      </main>
     </div>
   );
 }
