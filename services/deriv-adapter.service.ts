@@ -261,15 +261,27 @@ export class DerivAdapter {
         // Additional parameters would be added here based on the specific product
       };
 
-      console.log(`[DerivAdapter] Requesting proposal`);
+      console.log(`[DerivAdapter] Requesting proposal with params:`, {
+        underlying_symbol: derivSymbol,
+        contract_type: contractType,
+        amount: stake,
+        basis: 'stake',
+        currency: 'USD',
+        internal_symbol: request.symbol,
+        internal_direction: request.direction,
+        internal_lotSize: request.lotSize
+      });
       let proposal;
       try {
         proposal = await this.apiClient!.getProposal(proposalRequest);
       } catch (proposalError) {
         // If proposal fails due to connection issue, try reconnecting with fresh OTP
-        console.warn('[DerivAdapter] Proposal failed, attempting reconnection with fresh OTP');
+        console.warn('[DerivAdapter] Proposal failed, attempting reconnection with fresh OTP', {
+          error: proposalError instanceof Error ? proposalError.message : 'Unknown error'
+        });
         try {
           await this.apiClient!.reconnect();
+          console.log('[DerivAdapter] Reconnected, retrying proposal with same params');
           proposal = await this.apiClient!.getProposal(proposalRequest);
         } catch (reconnectError) {
           throw new Error(`Proposal failed after reconnection: ${reconnectError instanceof Error ? reconnectError.message : 'Unknown error'}`);

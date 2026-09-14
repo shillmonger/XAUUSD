@@ -306,20 +306,30 @@ export class DerivApiClient {
     const derivRequest = {
       proposal: 1,
       ...request,
-      subscribe: 0, // We don't need subscription for one-time proposal
+      subscribe: 1, // Current Deriv Options API requires subscribe: 1
       req_id: Date.now()
     };
 
     console.log('[DerivApiClient] PROPOSAL REQUEST:', JSON.stringify({
-      ...derivRequest,
-      // Don't log sensitive fields if any
+      proposal: derivRequest.proposal,
+      underlying_symbol: derivRequest.underlying_symbol,
+      contract_type: derivRequest.contract_type,
+      amount: derivRequest.amount,
+      basis: derivRequest.basis,
+      currency: derivRequest.currency,
+      subscribe: derivRequest.subscribe,
+      subscribe_type: typeof derivRequest.subscribe
     }, null, 2));
 
     const response = await this.wsClient.sendAndWait<any>(derivRequest);
     
     console.log('[DerivApiClient] PROPOSAL RAW RESPONSE:', JSON.stringify({
       msg_type: response.msg_type,
-      error: response.error,
+      error: response.error ? {
+        code: response.error.code,
+        message: response.error.message,
+        fields: response.error.fields
+      } : null,
       proposal: response.proposal ? {
         id: response.proposal.id,
         ask_price: response.proposal.ask_price,
