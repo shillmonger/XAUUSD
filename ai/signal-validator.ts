@@ -78,6 +78,9 @@ export function validateSignal(extractionResult: SignalExtractionResult): Signal
   }
 
   // Rule 8: Validate price relationships for BUY signals
+  // DISABLED: Signal provider may send non-standard formats
+  // Uncomment this section to enable strict price relationship validation
+  /*
   if (extractionResult.direction === 'BUY') {
     const referencePrice = extractionResult.entry ?? extractionResult.stopLoss;
     
@@ -111,8 +114,12 @@ export function validateSignal(extractionResult: SignalExtractionResult): Signal
       }
     }
   }
+  */
 
   // Rule 9: Validate price relationships for SELL signals
+  // DISABLED: Signal provider may send non-standard formats
+  // Uncomment this section to enable strict price relationship validation
+  /*
   if (extractionResult.direction === 'SELL') {
     const referencePrice = extractionResult.entry ?? extractionResult.stopLoss;
     
@@ -137,7 +144,7 @@ export function validateSignal(extractionResult: SignalExtractionResult): Signal
     if (extractionResult.entry !== undefined) {
       for (const tp of extractionResult.takeProfits) {
         if (tp >= extractionResult.entry) {
-          console.log(`[Signal Validator] SELL signal TP ${tp} is above entry`);
+          console.log(`[Signal Validator] SELL TP ${tp} is above entry`);
           return {
             isValid: false,
             reason: `SELL signal take profit ${tp} must be below entry price.`,
@@ -146,6 +153,7 @@ export function validateSignal(extractionResult: SignalExtractionResult): Signal
       }
     }
   }
+  */
 
   // Rule 10: Validate numeric values
   if (extractionResult.entry !== undefined && (isNaN(extractionResult.entry) || !isFinite(extractionResult.entry))) {

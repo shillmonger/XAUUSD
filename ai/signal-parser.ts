@@ -302,8 +302,28 @@ export function extractEntryFromRange(text: string, direction: 'BUY' | 'SELL' | 
   
   if (colonSeparatedRangeMatch) {
     const firstPrice = parseFloat(colonSeparatedRangeMatch[1]);
-    if (!isNaN(firstPrice)) {
+    const secondPrice = parseFloat(colonSeparatedRangeMatch[2]);
+    
+    // Validate that the price is reasonable (gold prices are typically 2000-5000)
+    // If first price is reasonable, use it; otherwise try second price
+    if (!isNaN(firstPrice) && firstPrice > 1000 && firstPrice < 10000) {
       return firstPrice;
+    } else if (!isNaN(secondPrice) && secondPrice > 1000 && secondPrice < 10000) {
+      console.log(`[Signal Parser] First price ${firstPrice} seems invalid, using second price ${secondPrice}`);
+      return secondPrice;
+    }
+  }
+  
+  // Fallback: Look for any colon-separated numbers after the direction and LIMIT keyword
+  // This handles malformed ranges like "4290:558" where 558 is likely a typo
+  const fallbackPattern = new RegExp(`${direction}\\s+(?:LIMIT|LIMET|LIMITT)\\s*(-?\\d+\\.?\\d*):\\d*`, 'i');
+  const fallbackMatch = upperText.match(fallbackPattern);
+  
+  if (fallbackMatch) {
+    const price = parseFloat(fallbackMatch[1]);
+    if (!isNaN(price) && price > 1000 && price < 10000) {
+      console.log(`[Signal Parser] Using fallback pattern for entry: ${price}`);
+      return price;
     }
   }
   
@@ -361,7 +381,8 @@ export function extractEntry(text: string, orderType?: 'MARKET' | 'LIMIT' | 'STO
   const directionMatch = upperText.match(directionNumberPattern);
   if (directionMatch) {
     const number = parseFloat(directionMatch[1]);
-    if (!isNaN(number)) {
+    // Validate that the price is reasonable (gold prices are typically 2000-5000)
+    if (!isNaN(number) && number > 1000 && number < 10000) {
       return number;
     }
   }
@@ -375,7 +396,25 @@ export function extractEntry(text: string, orderType?: 'MARKET' | 'LIMIT' | 'STO
     
     const entry = extractNumberAfterPattern(normalizedText, pattern);
     if (entry !== null) {
-      return entry;
+      // Validate that the price is reasonable (gold prices are typically 2000-5000)
+      if (entry > 1000 && entry < 10000) {
+        return entry;
+      }
+    }
+  }
+  
+  // Final fallback: Look for any number that could be a price after direction
+  // This handles very malformed signals
+  const directionIndex = upperText.indexOf(direction || '');
+  if (directionIndex !== -1) {
+    const afterDirection = normalizedText.substring(directionIndex + (direction?.length || 0));
+    const numberMatch = afterDirection.match(/(\d{4,5})/); // Look for 4-5 digit numbers (typical gold prices)
+    if (numberMatch) {
+      const fallbackPrice = parseFloat(numberMatch[1]);
+      if (!isNaN(fallbackPrice) && fallbackPrice > 1000 && fallbackPrice < 10000) {
+        console.log(`[Signal Parser] Using final fallback for entry: ${fallbackPrice}`);
+        return fallbackPrice;
+      }
     }
   }
   
@@ -406,7 +445,8 @@ export function extractStopLoss(text: string): number | null {
     const numberMatch = slMatch[0].match(/(-?\d+\.?\d*)/);
     if (numberMatch) {
       const number = parseFloat(numberMatch[1]);
-      if (!isNaN(number)) {
+      // Validate that the price is reasonable (gold prices are typically 2000-5000)
+      if (!isNaN(number) && number > 1000 && number < 10000) {
         return number;
       }
     }
@@ -431,12 +471,27 @@ export function extractTakeProfits(text: string): number[] {
   // Also handles TP1:, TP2:, etc. and TP1 :4080 (space before colon)
   const tpRegex = /(?:TP\d*|TAKE\s+PROFIT)\s*[:\s]*(-?\d+\.?\d*)/gi;
   
+  // Also match "TP1 :4285" format (space before colon)
+  const tpSpaceColonRegex = /(?:TP\d*)\s*:\s*(-?\d+\.?\d*)/gi;
+  
   let match;
   while ((match = tpRegex.exec(normalizedText)) !== null) {
     const numberStr = match[1];
     const number = parseFloat(numberStr);
     
-    if (!isNaN(number) && number > 0 && !takeProfits.includes(number)) {
+    // Validate that the price is reasonable (gold prices are typically 2000-5000)
+    if (!isNaN(number) && number > 1000 && number < 10000 && !takeProfits.includes(number)) {
+      takeProfits.push(number);
+    }
+  }
+  
+  // Process the space-colon format separately
+  while ((match = tpSpaceColonRegex.exec(normalizedText)) !== null) {
+    const numberStr = match[1];
+    const number = parseFloat(numberStr);
+    
+    // Validate that the price is reasonable
+    if (!isNaN(number) && number > 1000 && number < 10000 && !takeProfits.includes(number)) {
       takeProfits.push(number);
     }
   }
@@ -448,7 +503,8 @@ export function extractTakeProfits(text: string): number[] {
     const numberStr = match[1];
     const number = parseFloat(numberStr);
     
-    if (!isNaN(number) && number > 0 && !takeProfits.includes(number)) {
+    // Validate that the price is reasonable (gold prices are typically 2000-5000)
+    if (!isNaN(number) && number > 1000 && number < 10000 && !takeProfits.includes(number)) {
       takeProfits.push(number);
     }
   }
@@ -463,7 +519,8 @@ export function extractTakeProfits(text: string): number[] {
       const numberMatch = trimmedLine.match(/(-?\d+\.?\d*)/);
       if (numberMatch) {
         const number = parseFloat(numberMatch[1]);
-        if (!isNaN(number) && number > 0 && !takeProfits.includes(number)) {
+        // Validate that the price is reasonable (gold prices are typically 2000-5000)
+        if (!isNaN(number) && number > 1000 && number < 10000 && !takeProfits.includes(number)) {
           takeProfits.push(number);
         }
       }

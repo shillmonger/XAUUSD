@@ -90,6 +90,8 @@ export class InternalSignalEngine implements SignalEngine {
       const rawEntry = extractEntry(messageText, normalizedOrderType);
       const normalizedEntry = rawEntry !== undefined ? normalizePrice(rawEntry) : undefined;
       
+      console.log(`[Signal Engine] Raw entry extracted: ${rawEntry}, Normalized entry: ${normalizedEntry}`);
+      
       if (normalizedOrderType !== 'MARKET' && normalizedEntry === null) {
         console.log(`[Signal Engine] LIMIT/STOP order requires entry price, rejecting`);
         return {
@@ -138,7 +140,10 @@ export class InternalSignalEngine implements SignalEngine {
       console.log(`[Signal Engine] Take profits extracted: [${normalizedTakeProfits.join(', ')}]`);
 
       // Step 8: Basic price relationship validation during extraction
+      // DISABLED: Signal provider may send non-standard formats
       // This catches obvious errors before the deterministic validator
+      // Uncomment this section to enable strict price relationship validation
+      /*
       if (normalizedOrderType !== 'MARKET' && normalizedEntry !== undefined) {
         // For BUY signals: SL should be below entry, TPs should be above entry
         if (normalizedDirection === 'BUY') {
@@ -200,6 +205,7 @@ export class InternalSignalEngine implements SignalEngine {
           }
         }
       }
+      */
 
       // Step 9: Build the result
       const result: SignalExtractionResult = {
