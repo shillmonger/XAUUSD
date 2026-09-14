@@ -10,24 +10,42 @@ export interface ICopyTrade extends Document {
   broker: string;
   accountType: 'demo' | 'real';
   
-  // Trade parameters
-  symbol: string;
+  // ORIGINAL SIGNAL INTENT (Preserve for Audit)
+  asset: string;  // was: symbol
   direction: 'BUY' | 'SELL';
-  orderType: 'MARKET' | 'LIMIT' | 'STOP';
-  requestedEntry?: number;
-  executionPrice?: number;
-  
-  // Risk management
+  sourceOrderType: 'MARKET' | 'LIMIT' | 'STOP';  // was: orderType
+  sourceEntryPrice?: number;  // was: requestedEntry
   stopLoss?: number;
-  takeProfit?: number;
-  lotSize?: number;
+  takeProfit?: number;  // Single executed TP
+  takeProfits?: number[];  // All original TPs for audit
+  stake?: number;  // was: lotSize
   
-  // Broker identifiers
-  brokerContractId?: string;
+  // DERIV EXECUTION DETAILS (NEW - Multipliers only)
+  derivUnderlyingSymbol?: string;
+  derivContractType?: string;  // MULTUP/MULTDOWN only
+  legacyDerivContractType?: string;  // Historical Options (CALL/PUT)
+  multiplier?: number;
+  currency?: string;
+  proposalId?: string;
+  contractId?: string;  // was: brokerContractId
+  buyPrice?: number;
+  referenceSpot?: number;  // Used for SL/TP calculation
+  actualEntrySpot?: number;  // Actual execution price
+  contractStatus?: string;
+  actualDerivStopLossAmount?: number;
+  actualDerivTakeProfitAmount?: number;
+  sltpConversionMethod?: string;
+  sltpValidationStatus?: 'CANDIDATE' | 'DEMO_VALIDATED' | 'PRODUCTION_READY';
+  
+  // Legacy fields (keep for backward compatibility)
+  executionPrice?: number;  // DEPRECATED: use actualEntrySpot
+  requestedEntry?: number;  // DEPRECATED: use sourceEntryPrice
+  lotSize?: number;  // DEPRECATED: use stake
+  brokerContractId?: string;  // DEPRECATED: use contractId
   brokerTransactionId?: string;
   
   // Trade status
-  status: 'PENDING' | 'OPEN' | 'CLOSED' | 'FAILED' | 'CANCELLED';
+  status: 'PENDING' | 'OPEN' | 'CLOSED' | 'FAILED' | 'CANCELLED' | 'REJECTED_LIMIT_NOT_SUPPORTED';
   failureReason?: string;
   brokerErrorCode?: string;
   
@@ -70,40 +88,95 @@ const CopyTradeSchema: Schema<ICopyTrade> = new Schema(
       required: [true, 'Account type is required'],
     },
     
-    // Trade parameters
-    symbol: {
+    // ORIGINAL SIGNAL INTENT (Preserve for Audit)
+    asset: {
       type: String,
-      required: [true, 'Symbol is required'],
+      required: [true, 'Asset is required'],
     },
     direction: {
       type: String,
       enum: ['BUY', 'SELL'],
       required: [true, 'Direction is required'],
     },
-    orderType: {
+    sourceOrderType: {
       type: String,
       enum: ['MARKET', 'LIMIT', 'STOP'],
-      required: [true, 'Order type is required'],
+      required: [true, 'Source order type is required'],
     },
-    requestedEntry: {
+    sourceEntryPrice: {
       type: Number,
     },
-    executionPrice: {
-      type: Number,
-    },
-    
-    // Risk management
     stopLoss: {
       type: Number,
     },
     takeProfit: {
       type: Number,
     },
-    lotSize: {
+    takeProfits: {
+      type: [Number],
+    },
+    stake: {
       type: Number,
     },
     
-    // Broker identifiers
+    // DERIV EXECUTION DETAILS (NEW - Multipliers only)
+    derivUnderlyingSymbol: {
+      type: String,
+    },
+    derivContractType: {
+      type: String,
+    },
+    legacyDerivContractType: {
+      type: String,
+    },
+    multiplier: {
+      type: Number,
+    },
+    currency: {
+      type: String,
+    },
+    proposalId: {
+      type: String,
+    },
+    contractId: {
+      type: String,
+    },
+    buyPrice: {
+      type: Number,
+    },
+    referenceSpot: {
+      type: Number,
+    },
+    actualEntrySpot: {
+      type: Number,
+    },
+    contractStatus: {
+      type: String,
+    },
+    actualDerivStopLossAmount: {
+      type: Number,
+    },
+    actualDerivTakeProfitAmount: {
+      type: Number,
+    },
+    sltpConversionMethod: {
+      type: String,
+    },
+    sltpValidationStatus: {
+      type: String,
+      enum: ['CANDIDATE', 'DEMO_VALIDATED', 'PRODUCTION_READY'],
+    },
+    
+    // Legacy fields (keep for backward compatibility)
+    executionPrice: {
+      type: Number,
+    },
+    requestedEntry: {
+      type: Number,
+    },
+    lotSize: {
+      type: Number,
+    },
     brokerContractId: {
       type: String,
     },
@@ -114,7 +187,7 @@ const CopyTradeSchema: Schema<ICopyTrade> = new Schema(
     // Trade status
     status: {
       type: String,
-      enum: ['PENDING', 'OPEN', 'CLOSED', 'FAILED', 'CANCELLED'],
+      enum: ['PENDING', 'OPEN', 'CLOSED', 'FAILED', 'CANCELLED', 'REJECTED_LIMIT_NOT_SUPPORTED'],
       default: 'PENDING',
     },
     failureReason: {
@@ -156,12 +229,16 @@ CopyTradeSchema.index({ derivAccountId: 1 });
 CopyTradeSchema.index({ status: 1 });
 // Index for account type filtering
 CopyTradeSchema.index({ accountType: 1 });
-// Index for broker contract ID lookup
-CopyTradeSchema.index({ brokerContractId: 1 });
+// Index for contract ID lookup
+CopyTradeSchema.index({ contractId: 1 });
 // Index for date-based queries
 CopyTradeSchema.index({ processedAt: -1 });
 // Index for open trades monitoring
 CopyTradeSchema.index({ status: 1, accountType: 1 });
+// Index for asset lookup
+CopyTradeSchema.index({ asset: 1 });
+// Index for source order type
+CopyTradeSchema.index({ sourceOrderType: 1 });
 
 const CopyTrade: Model<ICopyTrade> = mongoose.models.CopyTrade || mongoose.model<ICopyTrade>('CopyTrade', CopyTradeSchema);
 

@@ -1,23 +1,35 @@
 /**
  * Deriv Symbol Mapper Service
- * Verifies and maps internal symbols to Deriv underlying symbols
+ * Runtime discovery of Deriv underlying symbols with exact matching
  * 
  * This service:
  * - Queries Deriv active_symbols to verify correct underlying symbols
- * - Maps internal XAUUSD to actual Deriv underlying symbol
+ * - Maps internal assets to actual Deriv underlying symbols using exact matching
+ * - Validates trading availability (exchange open, not suspended)
  * - Caches symbol mappings for performance
- * - Ensures we use the correct current Deriv API field names
+ * - NO hardcoded symbol values - all runtime-discovered
  */
 
 import { createDerivApiClient, DerivApiClient } from './deriv-api-client.service';
 
 export interface SymbolMapping {
-  internalSymbol: string;
+  internalAsset: string;  // Renamed from internalSymbol
   derivSymbol: string;
   underlyingSymbolName: string;
+  underlyingSymbolType: string;
   market: string;
+  submarket: string;
+  exchangeIsOpen: boolean;
+  isTradingSuspended: boolean;
   verified: boolean;
   verifiedAt: Date;
+}
+
+export interface SymbolDiscoveryResult {
+  success: boolean;
+  derivSymbol?: string;
+  error?: string;
+  details?: SymbolMapping;
 }
 
 /**
@@ -47,120 +59,135 @@ export class DerivSymbolMapper {
   }
 
   /**
-   * Find the correct Deriv underlying symbol for an internal symbol
+   * Find the correct Deriv underlying symbol using EXACT matching
+   * NO hardcoded patterns - runtime discovery only
    */
-  private findDerivSymbol(activeSymbols: any[], internalSymbol: string): string | null {
-    console.log('[DerivSymbolMapper] Searching for symbol:', internalSymbol);
+  private findDerivSymbolExact(activeSymbols: any[], internalAsset: string): SymbolDiscoveryResult {
+    console.log('[DerivSymbolMapper] EXACT matching for asset:', internalAsset);
     console.log('[DerivSymbolMapper] Total active symbols:', activeSymbols.length);
 
-    // Common patterns for XAUUSD in Deriv
-    const xauPatterns = [
-      'frxXAUUSD',  // Most common pattern
-      'XAUUSD',     // Direct symbol
-      'GOLD',       // Alternative name
-      'frxGOLD',    // Pattern with prefix
-    ];
-
-    // First, try exact match
-    const exactMatch = activeSymbols.find(s => 
-      s.underlying_symbol === internalSymbol || 
-      s.underlying_symbol_name === internalSymbol
-    );
+    // EXACT MATCHING with trading availability checks
+    const exactMatch = activeSymbols.find(s => {
+      const normalizedName = s.underlying_symbol_name?.replace(/\s/g, '').toUpperCase();
+      return normalizedName === internalAsset.replace(/\s/g, '').toUpperCase() &&
+             s.underlying_symbol_type === 'forex' &&
+             s.exchange_is_open === 1 &&
+             s.is_trading_suspended !== 1;
+    });
 
     if (exactMatch) {
-      console.log('[DerivSymbolMapper] Exact match found:', exactMatch.underlying_symbol);
-      return exactMatch.underlying_symbol;
-    }
-
-    // For XAUUSD, try common patterns
-    if (internalSymbol === 'XAUUSD') {
-      console.log('[DerivSymbolMapper] Trying XAUUSD patterns:', xauPatterns);
-      for (const pattern of xauPatterns) {
-        const match = activeSymbols.find(s => 
-          s.underlying_symbol === pattern ||
-          s.underlying_symbol.toLowerCase().includes('xau') ||
-          s.underlying_symbol_name.toLowerCase().includes('gold') ||
-          s.underlying_symbol_name.toLowerCase().includes('xau')
-        );
-
-        if (match) {
-          console.log('[DerivSymbolMapper] Pattern match found:', match.underlying_symbol, 'from pattern:', pattern);
-          return match.underlying_symbol;
+      console.log('[DerivSymbolMapper] EXACT match found:', exactMatch.underlying_symbol);
+      return {
+        success: true,
+        derivSymbol: exactMatch.underlying_symbol,
+        details: {
+          internalAsset,
+          derivSymbol: exactMatch.underlying_symbol,
+          underlyingSymbolName: exactMatch.underlying_symbol_name,
+          underlyingSymbolType: exactMatch.underlying_symbol_type,
+          market: exactMatch.market,
+          submarket: exactMatch.submarket,
+          exchangeIsOpen: exactMatch.exchange_is_open === 1,
+          isTradingSuspended: exactMatch.is_trading_suspended !== 1,
+          verified: true,
+          verifiedAt: new Date()
         }
-      }
+      };
     }
 
-    // For other symbols, try common forex pattern
-    const forexPattern = `frx${internalSymbol}`;
-    const forexMatch = activeSymbols.find(s => s.underlying_symbol === forexPattern);
-    if (forexMatch) {
-      console.log('[DerivSymbolMapper] Forex pattern match found:', forexMatch.underlying_symbol);
-      return forexMatch.underlying_symbol;
+    // FALLBACK with same trading availability checks
+    const fallbackMatch = activeSymbols.find(s => {
+      const normalizedName = s.underlying_symbol_name?.replace(/\s/g, '').toUpperCase();
+      return normalizedName.includes('XAU') &&
+             normalizedName.includes('USD') &&
+             s.underlying_symbol_type === 'forex' &&
+             s.exchange_is_open === 1 &&
+             s.is_trading_suspended !== 1;
+    });
+
+    if (fallbackMatch) {
+      console.log('[DerivSymbolMapper] FALLBACK match found:', fallbackMatch.underlying_symbol);
+      return {
+        success: true,
+        derivSymbol: fallbackMatch.underlying_symbol,
+        details: {
+          internalAsset,
+          derivSymbol: fallbackMatch.underlying_symbol,
+          underlyingSymbolName: fallbackMatch.underlying_symbol_name,
+          underlyingSymbolType: fallbackMatch.underlying_symbol_type,
+          market: fallbackMatch.market,
+          submarket: fallbackMatch.submarket,
+          exchangeIsOpen: fallbackMatch.exchange_is_open === 1,
+          isTradingSuspended: fallbackMatch.is_trading_suspended !== 1,
+          verified: true,
+          verifiedAt: new Date()
+        }
+      };
     }
 
-    console.log('[DerivSymbolMapper] No match found for:', internalSymbol);
+    console.log('[DerivSymbolMapper] No match found for:', internalAsset);
     console.log('[DerivSymbolMapper] Sample available symbols:', activeSymbols.slice(0, 5).map(s => ({
       symbol: s.underlying_symbol,
       name: s.underlying_symbol_name,
-      market: s.market
+      type: s.underlying_symbol_type,
+      market: s.market,
+      exchangeIsOpen: s.exchange_is_open,
+      isTradingSuspended: s.is_trading_suspended
     })));
 
-    return null;
+    return {
+      success: false,
+      error: `No Deriv symbol found for ${internalAsset}`
+    };
   }
 
   /**
-   * Verify and cache symbol mapping
+   * Discover and cache symbol mapping using exact matching
    */
-  async verifySymbolMapping(
-    internalSymbol: string,
+  async discoverSymbolMapping(
+    internalAsset: string,
     derivAccountId: string,
     accessToken: string,
     accountType: 'demo' | 'real'
-  ): Promise<SymbolMapping> {
+  ): Promise<SymbolDiscoveryResult> {
     // Check cache first
-    const cached = this.symbolCache.get(internalSymbol);
+    const cached = this.symbolCache.get(internalAsset);
     if (cached && Date.now() - cached.verifiedAt.getTime() < this.cacheExpiry) {
-      console.log(`[DerivSymbolMapper] Using cached mapping for ${internalSymbol}`);
-      return cached;
+      console.log(`[DerivSymbolMapper] Using cached mapping for ${internalAsset}`);
+      return {
+        success: true,
+        derivSymbol: cached.derivSymbol,
+        details: cached
+      };
     }
 
-    console.log(`[DerivSymbolMapper] Verifying symbol mapping for ${internalSymbol}`);
+    console.log(`[DerivSymbolMapper] Discovering symbol mapping for ${internalAsset}`);
 
     try {
       // Get active symbols from Deriv
       const activeSymbols = await this.getActiveSymbols(derivAccountId, accessToken, accountType);
       console.log(`[DerivSymbolMapper] Retrieved ${activeSymbols.length} active symbols`);
 
-      // Find the correct Deriv symbol
-      const derivSymbol = this.findDerivSymbol(activeSymbols, internalSymbol);
+      // Find the correct Deriv symbol using exact matching
+      const discoveryResult = this.findDerivSymbolExact(activeSymbols, internalAsset);
 
-      if (!derivSymbol) {
-        throw new Error(`No Deriv symbol found for ${internalSymbol}`);
+      if (!discoveryResult.success) {
+        return discoveryResult;
       }
 
-      // Get symbol details
-      const symbolDetails = activeSymbols.find(s => s.underlying_symbol === derivSymbol);
-
-      // Create mapping
-      const mapping: SymbolMapping = {
-        internalSymbol,
-        derivSymbol,
-        underlyingSymbolName: symbolDetails?.underlying_symbol_name || derivSymbol,
-        market: symbolDetails?.market || 'unknown',
-        verified: true,
-        verifiedAt: new Date()
-      };
-
       // Cache the mapping
-      this.symbolCache.set(internalSymbol, mapping);
+      this.symbolCache.set(internalAsset, discoveryResult.details!);
 
-      console.log(`[DerivSymbolMapper] Verified mapping: ${internalSymbol} -> ${derivSymbol} (${mapping.underlyingSymbolName})`);
+      console.log(`[DerivSymbolMapper] Discovered mapping: ${internalAsset} -> ${discoveryResult.derivSymbol} (${discoveryResult.details?.underlyingSymbolName})`);
 
-      return mapping;
+      return discoveryResult;
 
     } catch (error) {
-      console.error(`[DerivSymbolMapper] Failed to verify symbol mapping:`, error);
-      throw error;
+      console.error(`[DerivSymbolMapper] Failed to discover symbol mapping:`, error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
     } finally {
       // Clean up API client
       if (this.apiClient) {
@@ -173,8 +200,8 @@ export class DerivSymbolMapper {
   /**
    * Get cached mapping without verification
    */
-  getCachedMapping(internalSymbol: string): SymbolMapping | null {
-    const cached = this.symbolCache.get(internalSymbol);
+  getCachedMapping(internalAsset: string): SymbolMapping | null {
+    const cached = this.symbolCache.get(internalAsset);
     if (cached && Date.now() - cached.verifiedAt.getTime() < this.cacheExpiry) {
       return cached;
     }

@@ -1,7 +1,7 @@
 /**
  * Deterministic Signal Validator
  * Validates extracted signals against trading rules
- * This is the actual Phase 4 validation - makes the final decision whether a signal is authorized
+ * Updated for Deriv Multipliers architecture with LIMIT rejection and directional SL/TP validation
  */
 
 import { SignalExtractionResult, SignalValidationResult } from './signal-schema';
@@ -21,12 +21,12 @@ export function validateSignal(extractionResult: SignalExtractionResult): Signal
     };
   }
 
-  // Rule 2: Symbol must be XAUUSD
-  if (extractionResult.symbol !== 'XAUUSD') {
-    console.log(`[Signal Validator] Invalid symbol: ${extractionResult.symbol}`);
+  // Rule 2: Asset must be XAUUSD (renamed from symbol)
+  if (extractionResult.asset !== 'XAUUSD') {
+    console.log(`[Signal Validator] Invalid asset: ${extractionResult.asset}`);
     return {
       isValid: false,
-      reason: `Invalid symbol: ${extractionResult.symbol}. Only XAUUSD is supported.`,
+      reason: `Invalid asset: ${extractionResult.asset}. Only XAUUSD is supported.`,
     };
   }
 
@@ -39,27 +39,41 @@ export function validateSignal(extractionResult: SignalExtractionResult): Signal
     };
   }
 
-  // Rule 4: Order type must be MARKET, LIMIT, or STOP
-  if (!extractionResult.orderType || !['MARKET', 'LIMIT', 'STOP'].includes(extractionResult.orderType)) {
-    console.log(`[Signal Validator] Invalid order type: ${extractionResult.orderType}`);
+  // Rule 4: Source order type must be MARKET, LIMIT, or STOP (renamed from orderType)
+  if (!extractionResult.sourceOrderType || !['MARKET', 'LIMIT', 'STOP'].includes(extractionResult.sourceOrderType)) {
+    console.log(`[Signal Validator] Invalid source order type: ${extractionResult.sourceOrderType}`);
     return {
       isValid: false,
-      reason: `Invalid order type: ${extractionResult.orderType}. Must be MARKET, LIMIT, or STOP.`,
+      reason: `Invalid source order type: ${extractionResult.sourceOrderType}. Must be MARKET, LIMIT, or STOP.`,
     };
   }
 
-  // Rule 5: LIMIT and STOP orders require entry price
-  if (extractionResult.orderType === 'LIMIT' || extractionResult.orderType === 'STOP') {
-    if (extractionResult.entry === undefined) {
-      console.log(`[Signal Validator] ${extractionResult.orderType} order missing entry price`);
+  // Rule 5: HARD RULE - LIMIT signals are NOT supported by Deriv Multipliers
+  if (extractionResult.sourceOrderType === 'LIMIT') {
+    console.log(`[Signal Validator] LIMIT signal rejected - Deriv Multipliers do not support LIMIT orders`);
+    return {
+      isValid: false,
+      reason: 'LIMIT_NOT_SUPPORTED',
+      isLimitRejected: true,
+      rejectionDetails: {
+        reason: 'Deriv Multipliers do not support LIMIT orders. Original signal requested LIMIT entry at ' + extractionResult.sourceEntryPrice + ' which cannot be faithfully executed.',
+        originalSignal: extractionResult
+      }
+    };
+  }
+
+  // Rule 6: STOP orders require entry price (renamed fields)
+  if (extractionResult.sourceOrderType === 'STOP') {
+    if (extractionResult.sourceEntryPrice === undefined) {
+      console.log(`[Signal Validator] STOP order missing entry price`);
       return {
         isValid: false,
-        reason: `${extractionResult.orderType} order requires entry price.`,
+        reason: `STOP order requires entry price.`,
       };
     }
   }
 
-  // Rule 6: Stop loss must exist
+  // Rule 7: Stop loss must exist
   if (!extractionResult.stopLoss) {
     console.log(`[Signal Validator] Missing stop loss`);
     return {
@@ -68,7 +82,7 @@ export function validateSignal(extractionResult: SignalExtractionResult): Signal
     };
   }
 
-  // Rule 7: At least one take profit must exist
+  // Rule 8: At least one take profit must exist
   if (!extractionResult.takeProfits || extractionResult.takeProfits.length === 0) {
     console.log(`[Signal Validator] Missing take profits`);
     return {
@@ -77,90 +91,80 @@ export function validateSignal(extractionResult: SignalExtractionResult): Signal
     };
   }
 
-  // Rule 8: Validate price relationships for BUY signals
-  // DISABLED: Signal provider may send non-standard formats
-  // Uncomment this section to enable strict price relationship validation
-  /*
+  // Rule 9: DIRECTIONAL SL/TP VALIDATION (NEW - ENABLED)
+  // This prevents logically inverted signals
   if (extractionResult.direction === 'BUY') {
-    const referencePrice = extractionResult.entry ?? extractionResult.stopLoss;
+    // BUY: SL should be below reference, TP should be above reference
+    const referencePrice = extractionResult.sourceEntryPrice ?? extractionResult.stopLoss;
     
     if (!referencePrice) {
-      console.log(`[Signal Validator] BUY signal missing reference price for validation`);
+      console.log(`[Signal Validator] BUY signal missing reference price for directional validation`);
       return {
         isValid: false,
-        reason: 'BUY signal requires reference price for validation.',
+        reason: 'BUY signal requires reference price for directional validation.',
       };
     }
 
-    // SL should be below entry for BUY (only if entry is present)
-    if (extractionResult.entry !== undefined && extractionResult.stopLoss >= extractionResult.entry) {
-      console.log(`[Signal Validator] BUY signal SL is above entry`);
+    // SL should be below reference for BUY
+    if (extractionResult.stopLoss >= referencePrice) {
+      console.log(`[Signal Validator] BUY signal SL is above reference`);
       return {
         isValid: false,
-        reason: 'BUY signal stop loss must be below entry price.',
+        reason: 'BUY signal stop loss must be below reference price.',
       };
     }
 
-    // TPs should be above entry for BUY (only if entry is present)
-    if (extractionResult.entry !== undefined) {
-      for (const tp of extractionResult.takeProfits) {
-        if (tp <= extractionResult.entry) {
-          console.log(`[Signal Validator] BUY signal TP ${tp} is below entry`);
-          return {
-            isValid: false,
-            reason: `BUY signal take profit ${tp} must be above entry price.`,
-          };
-        }
+    // TPs should be above reference for BUY
+    for (const tp of extractionResult.takeProfits) {
+      if (tp <= referencePrice) {
+        console.log(`[Signal Validator] BUY signal TP ${tp} is below reference`);
+        return {
+          isValid: false,
+          reason: `BUY signal take profit ${tp} must be above reference price.`,
+        };
       }
     }
   }
-  */
 
-  // Rule 9: Validate price relationships for SELL signals
-  // DISABLED: Signal provider may send non-standard formats
-  // Uncomment this section to enable strict price relationship validation
-  /*
   if (extractionResult.direction === 'SELL') {
-    const referencePrice = extractionResult.entry ?? extractionResult.stopLoss;
+    // SELL: SL should be above reference, TP should be below reference
+    const referencePrice = extractionResult.sourceEntryPrice ?? extractionResult.stopLoss;
     
     if (!referencePrice) {
-      console.log(`[Signal Validator] SELL signal missing reference price for validation`);
+      console.log(`[Signal Validator] SELL signal missing reference price for directional validation`);
       return {
         isValid: false,
-        reason: 'SELL signal requires reference price for validation.',
+        reason: 'SELL signal requires reference price for directional validation.',
       };
     }
 
-    // SL should be above entry for SELL (only if entry is present)
-    if (extractionResult.entry !== undefined && extractionResult.stopLoss <= extractionResult.entry) {
-      console.log(`[Signal Validator] SELL signal SL is below entry`);
+    // SL should be above reference for SELL
+    if (extractionResult.stopLoss <= referencePrice) {
+      console.log(`[Signal Validator] SELL signal SL is below reference`);
       return {
         isValid: false,
-        reason: 'SELL signal stop loss must be above entry price.',
+        reason: 'SELL signal stop loss must be above reference price.',
       };
     }
 
-    // TPs should be below entry for SELL (only if entry is present)
-    if (extractionResult.entry !== undefined) {
-      for (const tp of extractionResult.takeProfits) {
-        if (tp >= extractionResult.entry) {
-          console.log(`[Signal Validator] SELL TP ${tp} is above entry`);
-          return {
-            isValid: false,
-            reason: `SELL signal take profit ${tp} must be below entry price.`,
-          };
-        }
+    // TPs should be below reference for SELL
+    for (const tp of extractionResult.takeProfits) {
+      if (tp >= referencePrice) {
+        console.log(`[Signal Validator] SELL signal TP ${tp} is above reference`);
+        return {
+          isValid: false,
+          reason: `SELL signal take profit ${tp} must be below reference price.`,
+        };
       }
     }
   }
-  */
 
-  // Rule 10: Validate numeric values
-  if (extractionResult.entry !== undefined && (isNaN(extractionResult.entry) || !isFinite(extractionResult.entry))) {
-    console.log(`[Signal Validator] Invalid entry price: ${extractionResult.entry}`);
+  // Rule 10: Validate numeric values (renamed field)
+  if (extractionResult.sourceEntryPrice !== undefined && (isNaN(extractionResult.sourceEntryPrice) || !isFinite(extractionResult.sourceEntryPrice))) {
+    console.log(`[Signal Validator] Invalid source entry price: ${extractionResult.sourceEntryPrice}`);
     return {
       isValid: false,
-      reason: 'Entry price is not a valid number.',
+      reason: 'Source entry price is not a valid number.',
     };
   }
 

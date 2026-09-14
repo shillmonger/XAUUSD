@@ -6,12 +6,17 @@ export interface ISignal extends Document {
   aiMessageId: mongoose.Types.ObjectId;
   telegramGroupId: string;
   providerId: mongoose.Types.ObjectId;
-  symbol: string;
+  
+  // Renamed fields for Deriv Multipliers architecture
+  asset: string;  // was: symbol
+  sourceOrderType: 'MARKET' | 'LIMIT' | 'STOP';  // was: orderType
+  sourceEntryPrice: number | undefined;  // was: entry
+  
   direction: 'BUY' | 'SELL';
-  orderType: 'MARKET' | 'LIMIT' | 'STOP';
-  entry: number | undefined;
   stopLoss: number;
-  takeProfits: number[];
+  takeProfits: number[];  // Keep as array for audit
+  stake?: number;  // was: lotSize
+  
   validationStatus: 'valid' | 'rejected';
   validationReason?: string;
   createdAt: Date;
@@ -38,23 +43,27 @@ const SignalSchema: Schema<ISignal> = new Schema(
       ref: 'TelegramProvider',
       required: [true, 'Provider ID is required'],
     },
-    symbol: {
+    // Renamed fields for Deriv Multipliers architecture
+    asset: {
       type: String,
-      required: [true, 'Symbol is required'],
+      required: [true, 'Asset is required'],
     },
     direction: {
       type: String,
       enum: ['BUY', 'SELL'],
       required: [true, 'Direction is required'],
     },
-    orderType: {
+    sourceOrderType: {
       type: String,
       enum: ['MARKET', 'LIMIT', 'STOP'],
-      required: [true, 'Order type is required'],
+      required: [true, 'Source order type is required'],
     },
-    entry: {
+    sourceEntryPrice: {
       type: Number,
       default: undefined,
+    },
+    stake: {
+      type: Number,
     },
     stopLoss: {
       type: Number,
@@ -63,7 +72,7 @@ const SignalSchema: Schema<ISignal> = new Schema(
     takeProfits: {
       type: [Number],
       required: [true, 'Take profits are required'],
-    },
+    },  // Keep as array for audit - single TP selected during execution
     validationStatus: {
       type: String,
       enum: ['valid', 'rejected'],
@@ -88,6 +97,10 @@ SignalSchema.index({ providerId: 1 });
 SignalSchema.index({ validationStatus: 1 });
 // Index for date-based queries
 SignalSchema.index({ createdAt: -1 });
+// Index for asset lookup
+SignalSchema.index({ asset: 1 });
+// Index for source order type
+SignalSchema.index({ sourceOrderType: 1 });
 
 const Signal: Model<ISignal> = mongoose.models.Signal || mongoose.model<ISignal>('Signal', SignalSchema);
 

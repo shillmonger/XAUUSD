@@ -14,16 +14,22 @@ export interface ITradeParameters extends Document {
   // Original Telegram signal values (for audit)
   telegramStopLoss: number;
   telegramTakeProfits: number[];
+  telegramStake?: number;  // was: telegramLotSize
   
   // Admin-configured values
-  configuredLotSize?: number;
+  configuredStake?: number;  // was: configuredLotSize
   configuredStopLoss?: number;
   configuredMaxPositions?: number;
+  configuredMultiplier?: number;  // NEW
+  configuredMaxRiskAmount?: number;  // NEW
   
   // Final execution parameters
   finalStopLoss?: number;
   finalTakeProfit?: number;
-  finalLotSize?: number;
+  finalStake?: number;  // was: finalLotSize
+  finalMultiplier?: number;  // NEW
+  finalCurrency?: string;  // NEW
+  finalTakeProfitIndex?: number;  // NEW
   
   // Position management
   currentOpenPositions: number;
@@ -80,15 +86,24 @@ const TradeParametersSchema: Schema<ITradeParameters> = new Schema(
       type: [Number],
       required: [true, 'Telegram take profits are required'],
     },
+    telegramStake: {
+      type: Number,
+    },
     
     // Admin-configured values
-    configuredLotSize: {
+    configuredStake: {
       type: Number,
     },
     configuredStopLoss: {
       type: Number,
     },
     configuredMaxPositions: {
+      type: Number,
+    },
+    configuredMultiplier: {
+      type: Number,
+    },
+    configuredMaxRiskAmount: {
       type: Number,
     },
     
@@ -99,7 +114,16 @@ const TradeParametersSchema: Schema<ITradeParameters> = new Schema(
     finalTakeProfit: {
       type: Number,
     },
-    finalLotSize: {
+    finalStake: {
+      type: Number,
+    },
+    finalMultiplier: {
+      type: Number,
+    },
+    finalCurrency: {
+      type: String,
+    },
+    finalTakeProfitIndex: {
       type: Number,
     },
     

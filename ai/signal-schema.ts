@@ -1,22 +1,25 @@
 /**
  * Signal Schema
  * Defines the expected structure for internal signal intelligence engine results
- * This schema is used for validation of signal extraction results
+ * Updated for Deriv Multipliers architecture with new field names
+ * AI should output trading intent only - NO Deriv-specific fields
  */
 
 import { z } from 'zod';
 
 /**
  * Zod schema for validating signal extraction results
+ * AI outputs only trading intent - backend resolves Deriv-specific fields
  */
 export const SignalExtractionSchema = z.object({
   isValidSignal: z.boolean(),
-  symbol: z.string().optional(),
+  asset: z.string().optional(),  // was: symbol
   direction: z.enum(['BUY', 'SELL']).optional(),
-  orderType: z.enum(['MARKET', 'LIMIT', 'STOP']).optional(),
-  entry: z.number().optional(), // Optional - not present for MARKET orders
+  sourceOrderType: z.enum(['MARKET', 'LIMIT', 'STOP']).optional(),  // was: orderType
+  sourceEntryPrice: z.number().optional(),  // was: entry
   stopLoss: z.number().optional(),
   takeProfits: z.array(z.number()).optional(),
+  stake: z.number().optional(),  // was: lotSize
 });
 
 /**
@@ -64,10 +67,16 @@ export function safeValidateSignalExtraction(data: unknown): {
 
 /**
  * Schema for deterministic signal validation result
+ * Added fields for LIMIT rejection support
  */
 export const SignalValidationSchema = z.object({
   isValid: z.boolean(),
   reason: z.string().optional(),
+  isLimitRejected: z.boolean().optional(),  // NEW
+  rejectionDetails: z.object({
+    reason: z.string().optional(),
+    originalSignal: SignalExtractionSchema.optional(),
+  }).optional(),
   validatedSignal: SignalExtractionSchema.optional(),
 });
 

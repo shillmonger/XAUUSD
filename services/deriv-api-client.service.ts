@@ -282,6 +282,7 @@ export class DerivApiClient {
 
   /**
    * Get contracts available for a specific underlying symbol
+   * Returns runtime-discovered contract types, multiplier ranges, and stake limits
    */
   async getContractsFor(underlyingSymbol: string): Promise<any> {
     const request = {
@@ -295,7 +296,112 @@ export class DerivApiClient {
       throw new Error(response.error.message);
     }
 
+    console.log('[DerivApiClient] Contracts for response:', {
+      symbol: underlyingSymbol,
+      availableContracts: response.contracts_for?.available?.length || 0,
+      hitCount: response.contracts_for?.hit_count
+    });
+
     return response.contracts_for || {};
+  }
+
+  /**
+   * Get current tick/spot price for an underlying symbol
+   * Used for SL/TP calculation and reference pricing
+   */
+  async getTick(underlyingSymbol: string): Promise<any> {
+    const request = {
+      ticks: underlyingSymbol,
+      subscribe: 0,  // One-time request
+      req_id: Date.now()
+    };
+
+    const response = await this.wsClient.sendAndWait<any>(request);
+    
+    if (response.error) {
+      throw new Error(response.error.message);
+    }
+
+    const tick = response.tick;
+    if (!tick) {
+      throw new Error('No tick data in response');
+    }
+
+    console.log('[DerivApiClient] Tick received:', {
+      symbol: underlyingSymbol,
+      quote: tick.quote,
+      epoch: tick.epoch
+    });
+
+    return tick;
+  }
+
+  /**
+   * Validate MULTUP/MULTDOWN availability and extract runtime parameters
+   */
+  async validateMultiplierContracts(underlyingSymbol: string): Promise<{
+    valid: boolean;
+    multupAvailable: boolean;
+    multdownAvailable: boolean;
+    multiplierRange: number[];
+    minStake: number;
+    maxStake: number;
+    error?: string;
+  }> {
+    try {
+      const contractsFor = await this.getContractsFor(underlyingSymbol);
+      const availableContracts = contractsFor.available || [];
+
+      const multupContract = availableContracts.find((c: any) => c.contract_type === 'MULTUP');
+      const multdownContract = availableContracts.find((c: any) => c.contract_type === 'MULTDOWN');
+
+      if (!multupContract || !multdownContract) {
+        return {
+          valid: false,
+          multupAvailable: !!multupContract,
+          multdownAvailable: !!multdownContract,
+          multiplierRange: [],
+          minStake: 0,
+          maxStake: 0,
+          error: !multupContract ? 'MULTUP not available' : 'MULTDOWN not available'
+        };
+      }
+
+      // Extract runtime-discovered parameters
+      const multiplierRange = multupContract.multiplier_range || [];
+      const minStake = multupContract.min_stake || 1;
+      const maxStake = multupContract.max_stake || 50000;
+
+      console.log('[DerivApiClient] Multiplier validation:', {
+        symbol: underlyingSymbol,
+        multupAvailable: true,
+        multdownAvailable: true,
+        multiplierRange,
+        minStake,
+        maxStake
+      });
+
+      return {
+        valid: true,
+        multupAvailable: true,
+        multdownAvailable: true,
+        multiplierRange,
+        minStake,
+        maxStake
+      };
+
+    } catch (error) {
+      console.error('[DerivApiClient] Multiplier validation failed:', error);
+      return {
+        valid: false,
+        multupAvailable: false,
+        multdownAvailable: false,
+        multiplierRange: [],
+        minStake: 0,
+        maxStake: 0,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
   }
 
   /**

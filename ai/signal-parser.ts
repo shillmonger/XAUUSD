@@ -1,6 +1,7 @@
 /**
  * Signal Parser
  * Extracts trading signal fields from text using pattern matching
+ * Updated for Deriv Multipliers architecture with new field names
  */
 
 import {
@@ -15,9 +16,9 @@ import {
 } from './signal-patterns';
 
 /**
- * Extract symbol from text
+ * Extract asset from text (renamed from symbol)
  */
-export function extractSymbol(text: string): string | null {
+export function extractAsset(text: string): string | null {
   // Normalize multiple spaces to single space for better pattern matching
   const normalizedText = text.replace(/\s+/g, ' ');
   const upperText = normalizedText.toUpperCase();
@@ -106,9 +107,9 @@ export function extractDirection(text: string): 'BUY' | 'SELL' | null {
 }
 
 /**
- * Extract order type from text
+ * Extract source order type from text (renamed from orderType)
  */
-export function extractOrderType(text: string): 'MARKET' | 'LIMIT' | 'STOP' | null {
+export function extractSourceOrderType(text: string): 'MARKET' | 'LIMIT' | 'STOP' | null {
   // Normalize multiple spaces to single space for better pattern matching
   const normalizedText = text.replace(/\s+/g, ' ');
   const upperText = normalizedText.toUpperCase();
@@ -331,12 +332,12 @@ export function extractEntryFromRange(text: string, direction: 'BUY' | 'SELL' | 
 }
 
 /**
- * Extract entry price from text
+ * Extract source entry price from text (renamed from entry)
  * For MARKET orders, we should not extract entry (it will be determined at execution)
  */
-export function extractEntry(text: string, orderType?: 'MARKET' | 'LIMIT' | 'STOP'): number | undefined {
+export function extractSourceEntryPrice(text: string, sourceOrderType?: 'MARKET' | 'LIMIT' | 'STOP'): number | undefined {
   // For MARKET orders, don't extract entry
-  if (orderType === 'MARKET') {
+  if (sourceOrderType === 'MARKET') {
     return undefined;
   }
   
@@ -412,13 +413,44 @@ export function extractEntry(text: string, orderType?: 'MARKET' | 'LIMIT' | 'STO
     if (numberMatch) {
       const fallbackPrice = parseFloat(numberMatch[1]);
       if (!isNaN(fallbackPrice) && fallbackPrice > 1000 && fallbackPrice < 10000) {
-        console.log(`[Signal Parser] Using final fallback for entry: ${fallbackPrice}`);
+        console.log(`[Signal Parser] Using final fallback for source entry price: ${fallbackPrice}`);
         return fallbackPrice;
       }
     }
   }
   
   return undefined;
+}
+
+/**
+ * Extract stake from text (renamed from lot size)
+ * Looks for lot size, volume, or stake information
+ */
+export function extractStake(text: string): number | null {
+  const normalizedText = text.replace(/\s+/g, ' ');
+  const upperText = normalizedText.toUpperCase();
+  
+  // Pattern matches: Lot size 0.01, Lot: 0.1, Volume 1.0, Stake 5, etc.
+  const stakePatterns = [
+    /(?:LOT|LOTS|VOLUME|STAKE|SIZE)\s*[:\s]*(-?\d+\.?\d*)/gi,
+    /(?:L|V)\s*[:\s]*(-?\d+\.?\d*)/gi,  // Compact: L:0.01, V:1.0
+  ];
+  
+  for (const pattern of stakePatterns) {
+    const match = normalizedText.match(pattern);
+    if (match) {
+      const numberMatch = match[0].match(/(-?\d+\.?\d*)/);
+      if (numberMatch) {
+        const number = parseFloat(numberMatch[1]);
+        // Validate reasonable stake values (typically 0.01 to 1000)
+        if (!isNaN(number) && number > 0 && number < 10000) {
+          return number;
+        }
+      }
+    }
+  }
+  
+  return null;
 }
 
 /**
