@@ -7,6 +7,7 @@ import {
   Unplug,
   CreditCard,
   Gem,
+  Server,
   ChartColumnBig,
   BadgeCheck,
   Users,
@@ -14,6 +15,7 @@ import {
   ChartSpline,
   BarChart3,
   Send,
+  DatabaseZap,
   PieChart,
   Gift,
   Settings,
@@ -24,9 +26,9 @@ export default function UserNav() {
 
   const navItems = [
     { name: "Home", icon: LayoutDashboard, href: `${basePath}/dashboard` },
-    { name: "Provider", icon: Send, href: `${basePath}/providers` },
-    { name: "Billings", icon: Wallet, href: `${basePath}/mt5-connection` },
-    { name: "Deriv", icon: Users, href: `${basePath}/deriv-accounts` },
+    { name: "Provider", icon: DatabaseZap, href: `${basePath}/providers` },
+    { name: "Billings", icon: Wallet, href: `${basePath}/bot-billing` },
+    { name: "Deriv", icon: Server, href: `${basePath}/deriv-accounts` },
     { name: "Analytics", icon: PieChart, href: `${basePath}/my-investments` },
     { name: "Settings", icon: Settings, href: `${basePath}/user-settings` },
   ];

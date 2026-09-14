@@ -108,7 +108,7 @@ export default function UserHeader({
         {/* Theme toggle */}
         <button
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-          className="p-2 rounded-full cursor-pointer bg-secondary transition-colors"
+          className="p-2 rounded-full cursor-pointer transition-colors"
           title="Toggle theme"
         >
           {mounted &&
@@ -122,7 +122,7 @@ export default function UserHeader({
         {/* Notification Bell */}
         <Link
           href="/UserDashboard/notifications"
-          className="p-2 bg-secondary rounded-full relative cursor-pointer"
+          className="p-2 rounded-full relative cursor-pointer"
         >
           <Bell className="h-5 w-5" />
 

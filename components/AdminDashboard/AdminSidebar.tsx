@@ -10,14 +10,26 @@ import {
   BadgeCheck,
   Users,
   History,
+  Signal,
+  TriangleAlert,
   Tags,
   Server,
   ScreenShare,
+  MailSearch,
+  BatteryFull,
+  DatabaseZap,
+  Brain,
+  FaceSlightlySmilingPlus,
   Scale,
+  Diff,
   ShieldCheck,
   CircleGauge,
+  UsersRound,
+  UserRoundKey,
+  KeyRound,
   Lock,
   Settings,
+  PieChart,
   LogOut,
   ChevronDown,
   X,
@@ -47,6 +59,7 @@ export default function AdminSidebar({
 
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
     "Bot Settings": true,
+    "TG Responses": false,
   });
 
   const basePath = "/AdminDashboard";
@@ -67,22 +80,35 @@ export default function AdminSidebar({
   const navItems: NavItem[] = [
     // === MAIN ===
     { name: "Overview", icon: LayoutDashboard, href: `${basePath}/dashboard` },
-    { name: "TG Provider", icon: Send, href: `${basePath}/providers` },
-    { name: "Bot Subscriptions", icon: BadgeCheck, href: `${basePath}/subscription` },
-    { name: "Deriv Accounts", icon: Users, href: `${basePath}/deriv-accounts` },
-    { name: "Trades Actions", icon: History, href: `${basePath}/trades-actions` },
-    { name: "Copy jobs", icon: Tags, href: `${basePath}/copy-jobs` },
-    { name: "Master trades", icon: Server, href: `${basePath}/master-trades` },
-    { name: "Trades activity", icon: ScreenShare, href: `${basePath}/trade-activity` },
+    { name: "TG Provider", icon: DatabaseZap, href: `${basePath}/providers` },
+    { name: "Bot Billing", icon: BadgeCheck, href: `${basePath}/bot-billing` },
+    { name: "Deriv Accounts", icon: Server, href: `${basePath}/deriv-accounts` },
+    { name: "Bot Analytics", icon: PieChart, href: `${basePath}/my-investments` },
+    {
+      name: "Audie logs",
+      icon: KeyRound,
+      children: [
+        { name: "TG Messages", icon: MailSearch, href: `${basePath}/` },
+        { name: "AI Messages", icon: Brain, href: `${basePath}/` },
+        { name: "Parameters", icon: Diff, href: `${basePath}/` },
+        { name: "Final Signals", icon: Signal, href: `${basePath}/` },
+        { name: "Eligible Users", icon: FaceSlightlySmilingPlus, href: `${basePath}/` },
+      ],
+    },
+    { name: "Copy Trades", icon: Tags, href: `${basePath}/copy-trades` },
     {
       name: "Bot Settings",
       icon: Settings,
       children: [
         { name: "Position Limits", icon: CircleGauge, href: `${basePath}/position-limits` },
         { name: "Lot size Config", icon: Scale, href: `${basePath}/lot-size` },
-        { name: "Stop lose Config", icon: ShieldCheck, href: `${basePath}/stop-loss` },
+        { name: "Stop lose Config", icon: TriangleAlert, href: `${basePath}/stop-loss` },
+    { name: "Trades Actions", icon: History, href: `${basePath}/trades-actions` },
       ],
     },
+    { name: "Role Settings", icon: UserRoundKey, href: `${basePath}/role-settings` },
+    { name: "User Managements", icon: UsersRound, href: `${basePath}/user-management` },
+  
     { name: "Switch to User", icon: Lock, href: `/UserDashboard/dashboard` },
   ];
 
@@ -120,7 +146,7 @@ export default function AdminSidebar({
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 min-h-0 overflow-y-auto px-4 py-5 space-y-1 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+        <nav className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-0 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
           {navItems.map((item) => {
             if ("href" in item) {
               const active = pathname === item.href;
@@ -135,7 +161,7 @@ export default function AdminSidebar({
                   }`}
                 >
                   <item.icon
-                    className={`w-5 h-5 mr-5 transition-transform ${
+                    className={`w-5 h-5 mr-3 transition-transform ${
                       active ? "scale-110" : "group-hover:scale-110"
                     }`}
                   />
