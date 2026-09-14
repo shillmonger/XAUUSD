@@ -82,9 +82,18 @@ export class DerivWebSocketClient {
           token_prefix: this.config.accessToken.substring(0, 10) + '...'
         });
 
+        // Set connection timeout for Vercel environment
+        const connectionTimeout = setTimeout(() => {
+          if (this.ws) {
+            this.ws.terminate();
+          }
+          reject(new Error('WebSocket connection timeout after 15 seconds'));
+        }, 15000);
+
         this.ws = new WebSocket(endpoint);
 
         this.ws.on('open', () => {
+          clearTimeout(connectionTimeout);
           console.log('[DerivWebSocketClient] WebSocket connected successfully');
           this.reconnectAttempts = 0;
           
@@ -108,6 +117,7 @@ export class DerivWebSocketClient {
         });
 
         this.ws.on('error', (error: Error) => {
+          clearTimeout(connectionTimeout);
           console.error('[DerivWebSocketClient] WebSocket error details:', {
             error_message: error.message,
             error_name: error.name,
@@ -119,6 +129,7 @@ export class DerivWebSocketClient {
         });
 
         this.ws.on('close', () => {
+          clearTimeout(connectionTimeout);
           console.log('[DerivWebSocketClient] WebSocket closed');
           this.handleReconnect();
         });

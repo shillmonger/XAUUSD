@@ -727,11 +727,11 @@ export default function ConnectDerivPage() {
 
                     <div className="rounded-xl border border-[#D4AF37]/25 bg-[#D4AF37]/5 p-3.5">
                       <p className="text-[10px] font-black uppercase tracking-widest text-[#D4AF37]">
-                        CURRENT BALANCE
+                        USER BALANCE
                       </p>
                       <p className="mt-1 font-mono text-base font-black tracking-tight text-[#D4AF37]">
                         {currency} {parseFloat(balance).toLocaleString("en-US", {
-                          minimumFractionDigits: 2,
+                          minimumFractionDigits: 0,
                           maximumFractionDigits: 2,
                         })}
                       </p>

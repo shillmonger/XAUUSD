@@ -15,6 +15,7 @@ import StopLossManagement from '@/models/StopLossManagement';
 import PositionLimit from '@/models/PositionLimit';
 import { decrypt } from '@/lib/encryption';
 import { ISignal } from '@/models/Signal';
+import { createDerivApiClient, DerivApiClient } from './deriv-api-client.service';
 
 export interface ResolvedTradeParameters {
   signalId: string;
@@ -62,9 +63,11 @@ export interface BalanceFetchResult {
 export class TradeParameterResolver {
   
   /**
-   * Fetch current balance from Deriv API using existing authentication
+   * Fetch current balance from Deriv API using WebSocket authentication
    */
   private async fetchCurrentDerivBalance(derivAccount: any): Promise<BalanceFetchResult> {
+    let apiClient: DerivApiClient | null = null;
+    
     try {
       console.log(`[TradeParameterResolver] Fetching current balance for account ${derivAccount.derivAccountId}`);
       
@@ -87,56 +90,19 @@ export class TradeParameterResolver {
         };
       }
       
-      // Fetch current account information from Deriv API
-      const accountResponse = await fetch('https://api.derivws.com/trading/v1/options/accounts', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Deriv-App-ID': process.env.DERIV_CLIENT_ID!,
-          'Content-Type': 'application/json',
-        },
-      });
+      // Create Deriv API client using WebSocket
+      apiClient = await createDerivApiClient(accessToken, derivAccount.accountType);
       
-      if (!accountResponse.ok) {
-        console.error(`[TradeParameterResolver] Deriv API request failed: ${accountResponse.status}`);
-        return {
-          success: false,
-          error: 'DERIV_API_REQUEST_FAILED'
-        };
-      }
+      // Fetch account information to get current balance
+      const accountInfo = await apiClient.getAccountInfo();
+      const currentBalance = accountInfo.balance;
       
-      const accountResponseText = await accountResponse.text();
-      let accountData;
-      try {
-        accountData = JSON.parse(accountResponseText);
-      } catch (error) {
-        return {
-          success: false,
-          error: 'DERIV_API_RESPONSE_PARSE_FAILED'
-        };
-      }
+      console.log(`[TradeParameterResolver] Account info retrieved: balance=${currentBalance}, currency=${accountInfo.currency}`);
       
-      // Find the connected account in the response
-      if (!accountData.data || !Array.isArray(accountData.data)) {
-        return {
-          success: false,
-          error: 'DERIV_API_INVALID_DATA_STRUCTURE'
-        };
-      }
+      // Disconnect the API client
+      apiClient.disconnect();
       
-      const connectedAccount = accountData.data.find(
-        (acc: any) => acc.account_id === derivAccount.derivAccountId
-      );
-      
-      if (!connectedAccount) {
-        return {
-          success: false,
-          error: 'DERIV_ACCOUNT_NOT_FOUND'
-        };
-      }
-      
-      const currentBalance = parseFloat(connectedAccount.balance || '0');
-      console.log(`[TradeParameterResolver] Current balance fetched: ${currentBalance}`);
+      console.log(`[TradeParameterResolver] Current balance fetched successfully: ${currentBalance}`);
       
       return {
         success: true,
@@ -145,9 +111,19 @@ export class TradeParameterResolver {
       
     } catch (error) {
       console.error(`[TradeParameterResolver] Balance fetch error:`, error);
+      
+      // Make sure to disconnect the client on error
+      if (apiClient) {
+        try {
+          apiClient.disconnect();
+        } catch (disconnectError) {
+          console.error(`[TradeParameterResolver] Error disconnecting API client:`, disconnectError);
+        }
+      }
+      
       return {
         success: false,
-        error: 'BALANCE_FETCH_ERROR'
+        error: error instanceof Error ? error.message : 'BALANCE_FETCH_ERROR'
       };
     }
   }

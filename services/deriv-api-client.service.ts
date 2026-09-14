@@ -87,6 +87,40 @@ export class DerivApiClient {
   }
 
   /**
+   * Get account information including balance
+   * This is used to fetch current account balance
+   */
+  async getAccountInfo(): Promise<{
+    balance: number;
+    currency: string;
+    loginid: string;
+    [key: string]: any;
+  }> {
+    const request = {
+      account_info: 1,
+      req_id: Date.now()
+    };
+
+    const response = await this.wsClient.sendAndWait<any>(request);
+    
+    if (response.error) {
+      throw new Error(response.error.message);
+    }
+
+    const accountInfo = response.account_info;
+    if (!accountInfo) {
+      throw new Error('No account info in response');
+    }
+
+    return {
+      balance: parseFloat(accountInfo.balance || '0'),
+      currency: accountInfo.currency || 'USD',
+      loginid: accountInfo.loginid || '',
+      ...accountInfo
+    };
+  }
+
+  /**
    * Get active symbols from Deriv
    * This helps us verify the correct underlying symbol for XAUUSD
    */
