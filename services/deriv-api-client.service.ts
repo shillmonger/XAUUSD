@@ -93,9 +93,7 @@ export async function getAuthenticatedWebSocketUrl(
 ): Promise<string> {
   console.log('[DerivApiClient] Requesting authenticated WebSocket URL', {
     derivAccountId: derivAccountId.substring(0, 8) + '...',
-    accountType: accountType,
-    tokenLength: accessToken.length,
-    tokenPrefix: accessToken.substring(0, 10) + '...'
+    accountType: accountType
   });
 
   // Demo-only safety check
@@ -109,6 +107,13 @@ export async function getAuthenticatedWebSocketUrl(
 
   const otpEndpoint = `https://api.derivws.com/trading/v1/options/accounts/${derivAccountId}/otp`;
 
+  console.log('[DerivApiClient] OTP request details', {
+    endpoint: otpEndpoint.replace(derivAccountId, derivAccountId.substring(0, 8) + '...'),
+    method: 'POST',
+    hasAuth: !!accessToken,
+    accountType: accountType
+  });
+
   try {
     const response = await fetch(otpEndpoint, {
       method: 'POST',
@@ -120,7 +125,7 @@ export async function getAuthenticatedWebSocketUrl(
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('[DerivApiClient] OTP request failed', {
+      console.error('[DerivApiClient] OTP request HTTP error', {
         status: response.status,
         statusText: response.statusText,
         derivAccountId: derivAccountId.substring(0, 8) + '...',
@@ -141,16 +146,42 @@ export async function getAuthenticatedWebSocketUrl(
       throw new Error('Invalid JSON response from OTP endpoint');
     }
 
+    // Log safe response structure for debugging
+    console.log('[DerivApiClient] OTP response structure', {
+      httpStatus: response.status,
+      hasData: !!responseData.data,
+      dataType: typeof responseData.data,
+      dataKeys: responseData.data ? Object.keys(responseData.data) : [],
+      topLevelKeys: Object.keys(responseData),
+      hasDataUrl: !!(responseData.data?.url),
+      dataUrlType: typeof responseData.data?.url,
+      // Check for alternative field names in case API structure differs
+      hasWsUrl: !!(responseData.ws_url),
+      hasWebsocketUrl: !!(responseData.websocket_url),
+      hasTopLevelUrl: !!(responseData.url)
+    });
+
     // Extract WebSocket URL from response
-    // The response format may vary, so we check common field names
-    const wsUrl = responseData.ws_url || responseData.websocket_url || responseData.url;
+    // Try multiple possible field names based on different API versions
+    let wsUrl = responseData.data?.url;
+    
+    // Fallback to alternative field names if data.url is not present
+    if (!wsUrl) {
+      wsUrl = responseData.ws_url || responseData.websocket_url || responseData.url;
+    }
 
     if (!wsUrl || typeof wsUrl !== 'string') {
       console.error('[DerivApiClient] No WebSocket URL in OTP response', {
-        responseFields: Object.keys(responseData),
-        responseType: typeof responseData
+        httpStatus: response.status,
+        hasData: !!responseData.data,
+        dataKeys: responseData.data ? Object.keys(responseData.data) : [],
+        topLevelKeys: Object.keys(responseData),
+        hasWsUrl: !!(responseData.ws_url),
+        hasWebsocketUrl: !!(responseData.websocket_url),
+        hasTopLevelUrl: !!(responseData.url),
+        derivAccountId: derivAccountId.substring(0, 8) + '...'
       });
-      throw new Error('No WebSocket URL returned from OTP endpoint');
+      throw new Error(`No WebSocket URL returned from OTP endpoint (HTTP ${response.status})`);
     }
 
     // Validate the URL format
@@ -407,8 +438,10 @@ export class DerivApiClient {
     const derivRequest = {
       contract_update: 1,
       contract_id: request.contract_id,
-      stop_loss: request.stop_loss,
-      take_profit: request.take_profit,
+      limit_order: {
+        stop_loss: request.stop_loss,
+        take_profit: request.take_profit
+      },
       req_id: Date.now()
     };
 
