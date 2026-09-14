@@ -20,8 +20,8 @@ export interface ProposalRequest {
   amount: number;
   basis: 'stake' | 'payout';
   currency?: string;
-  duration?: number;
-  duration_unit?: string;
+  duration: number;
+  duration_unit: string;
   barrier?: string;
   barrier_type?: string;
   [key: string]: any;
@@ -317,6 +317,8 @@ export class DerivApiClient {
       amount: derivRequest.amount,
       basis: derivRequest.basis,
       currency: derivRequest.currency,
+      duration: derivRequest.duration,
+      duration_unit: derivRequest.duration_unit,
       subscribe: derivRequest.subscribe,
       subscribe_type: typeof derivRequest.subscribe
     }, null, 2));

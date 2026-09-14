@@ -258,6 +258,8 @@ export class DerivAdapter {
         amount: stake,
         basis: 'stake' as const,
         currency: 'USD',
+        duration: 1, // Default duration: 1 day
+        duration_unit: 'd', // Duration unit: 'd' for day
         // Additional parameters would be added here based on the specific product
       };
 
@@ -267,6 +269,8 @@ export class DerivAdapter {
         amount: stake,
         basis: 'stake',
         currency: 'USD',
+        duration: 1,
+        duration_unit: 'd',
         internal_symbol: request.symbol,
         internal_direction: request.direction,
         internal_lotSize: request.lotSize
