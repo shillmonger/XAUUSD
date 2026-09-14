@@ -31,16 +31,16 @@ export class DerivSymbolMapper {
   /**
    * Initialize the symbol mapper with an API client
    */
-  private async initializeApiClient(accessToken: string, accountType: 'demo' | 'real'): Promise<void> {
-    this.apiClient = await createDerivApiClient(accessToken, accountType);
+  private async initializeApiClient(derivAccountId: string, accessToken: string, accountType: 'demo' | 'real'): Promise<void> {
+    this.apiClient = await createDerivApiClient(derivAccountId, accessToken, accountType);
   }
 
   /**
    * Get active symbols from Deriv
    */
-  private async getActiveSymbols(accessToken: string, accountType: 'demo' | 'real'): Promise<any[]> {
+  private async getActiveSymbols(derivAccountId: string, accessToken: string, accountType: 'demo' | 'real'): Promise<any[]> {
     if (!this.apiClient) {
-      await this.initializeApiClient(accessToken, accountType);
+      await this.initializeApiClient(derivAccountId, accessToken, accountType);
     }
 
     return await this.apiClient!.getActiveSymbols();
@@ -113,6 +113,7 @@ export class DerivSymbolMapper {
    */
   async verifySymbolMapping(
     internalSymbol: string,
+    derivAccountId: string,
     accessToken: string,
     accountType: 'demo' | 'real'
   ): Promise<SymbolMapping> {
@@ -127,7 +128,7 @@ export class DerivSymbolMapper {
 
     try {
       // Get active symbols from Deriv
-      const activeSymbols = await this.getActiveSymbols(accessToken, accountType);
+      const activeSymbols = await this.getActiveSymbols(derivAccountId, accessToken, accountType);
       console.log(`[DerivSymbolMapper] Retrieved ${activeSymbols.length} active symbols`);
 
       // Find the correct Deriv symbol

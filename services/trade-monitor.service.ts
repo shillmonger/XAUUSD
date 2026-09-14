@@ -197,7 +197,7 @@ export class TradeMonitorService {
       }
       
       // Step 5: Create Deriv API client
-      const apiClient = await createDerivApiClient(accessToken, derivAccount.accountType);
+      const apiClient = await createDerivApiClient(derivAccount.derivAccountId, accessToken, derivAccount.accountType);
       
       console.log(`[TradeMonitor] Checking Deriv contract: ${trade.brokerContractId}`);
       

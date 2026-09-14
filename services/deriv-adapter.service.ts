@@ -69,7 +69,7 @@ export class DerivAdapter {
   /**
    * Get Deriv underlying symbol for internal symbol using the symbol mapper
    */
-  private async getDerivSymbol(internalSymbol: string, accessToken: string, accountType: 'demo' | 'real'): Promise<string> {
+  private async getDerivSymbol(internalSymbol: string, derivAccountId: string, accessToken: string, accountType: 'demo' | 'real'): Promise<string> {
     // Check cache first
     const cached = this.symbolMappingCache.get(internalSymbol);
     if (cached) {
@@ -78,7 +78,7 @@ export class DerivAdapter {
     }
 
     // Verify symbol mapping using the symbol mapper
-    const mapping = await derivSymbolMapper.verifySymbolMapping(internalSymbol, accessToken, accountType);
+    const mapping = await derivSymbolMapper.verifySymbolMapping(internalSymbol, derivAccountId, accessToken, accountType);
     
     // Cache the mapping
     this.symbolMappingCache.set(internalSymbol, mapping);
@@ -150,7 +150,7 @@ export class DerivAdapter {
   }
 
   /**
-   * Initialize API client with user's access token
+   * Initialize API client with user's access token and account ID
    */
   private async initializeApiClient(derivAccountId: string, accessToken: string): Promise<void> {
     const derivAccount = await DerivAccount.findOne({ derivAccountId });
@@ -158,8 +158,12 @@ export class DerivAdapter {
       throw new Error(`Deriv account not found: ${derivAccountId}`);
     }
 
-    // Create API client
-    this.apiClient = await createDerivApiClient(accessToken, derivAccount.accountType);
+    // Create API client with OTP authentication
+    this.apiClient = await createDerivApiClient(
+      derivAccountId,
+      accessToken,
+      derivAccount.accountType
+    );
   }
 
   /**
@@ -239,7 +243,7 @@ export class DerivAdapter {
       console.log(`[DerivAdapter] API client initialized`);
 
       // Step 6: Translate internal trade to Deriv format
-      const derivSymbol = await this.getDerivSymbol(request.symbol, accessToken, derivAccount.accountType);
+      const derivSymbol = await this.getDerivSymbol(request.symbol, request.derivAccountId, accessToken, derivAccount.accountType);
       const contractType = this.translateDirection(request.direction);
       const stake = this.translateLotSize(request.lotSize);
 
@@ -258,7 +262,19 @@ export class DerivAdapter {
       };
 
       console.log(`[DerivAdapter] Requesting proposal`);
-      const proposal = await this.apiClient!.getProposal(proposalRequest);
+      let proposal;
+      try {
+        proposal = await this.apiClient!.getProposal(proposalRequest);
+      } catch (proposalError) {
+        // If proposal fails due to connection issue, try reconnecting with fresh OTP
+        console.warn('[DerivAdapter] Proposal failed, attempting reconnection with fresh OTP');
+        try {
+          await this.apiClient!.reconnect();
+          proposal = await this.apiClient!.getProposal(proposalRequest);
+        } catch (reconnectError) {
+          throw new Error(`Proposal failed after reconnection: ${reconnectError instanceof Error ? reconnectError.message : 'Unknown error'}`);
+        }
+      }
       console.log(`[DerivAdapter] Proposal received: ${proposal.id}`);
 
       // Step 8: Buy the contract
@@ -268,7 +284,19 @@ export class DerivAdapter {
       };
 
       console.log(`[DerivAdapter] Buying contract`);
-      const buyResponse = await this.apiClient!.buy(buyRequest);
+      let buyResponse;
+      try {
+        buyResponse = await this.apiClient!.buy(buyRequest);
+      } catch (buyError) {
+        // If buy fails due to connection issue, try reconnecting with fresh OTP
+        console.warn('[DerivAdapter] Buy failed, attempting reconnection with fresh OTP');
+        try {
+          await this.apiClient!.reconnect();
+          buyResponse = await this.apiClient!.buy(buyRequest);
+        } catch (reconnectError) {
+          throw new Error(`Buy failed after reconnection: ${reconnectError instanceof Error ? reconnectError.message : 'Unknown error'}`);
+        }
+      }
       console.log(`[DerivAdapter] Contract bought: ${buyResponse.contract_id}`);
 
       // Step 9: Apply SL/TP if supported by the product
@@ -281,8 +309,22 @@ export class DerivAdapter {
         };
 
         console.log(`[DerivAdapter] Applying SL/TP`);
-        await this.apiClient!.updateContract(updateRequest);
-        console.log(`[DerivAdapter] SL/TP applied`);
+        try {
+          await this.apiClient!.updateContract(updateRequest);
+          console.log(`[DerivAdapter] SL/TP applied`);
+        } catch (updateError) {
+          // If update fails due to connection issue, try reconnecting with fresh OTP
+          console.warn('[DerivAdapter] SL/TP update failed, attempting reconnection with fresh OTP');
+          try {
+            await this.apiClient!.reconnect();
+            await this.apiClient!.updateContract(updateRequest);
+            console.log(`[DerivAdapter] SL/TP applied after reconnection`);
+          } catch (reconnectError) {
+            // SL/TP update might not be supported for all contract types
+            // Log but don't fail the trade if SL/TP update fails
+            console.warn(`[DerivAdapter] SL/TP update failed after reconnection (may not be supported):`, reconnectError);
+          }
+        }
       } catch (error) {
         // SL/TP update might not be supported for all contract types
         // Log but don't fail the trade if SL/TP update fails

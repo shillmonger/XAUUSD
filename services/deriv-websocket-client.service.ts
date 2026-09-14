@@ -3,19 +3,17 @@
  * Handles authenticated WebSocket connections to Deriv for trading operations
  * 
  * This service:
- * - Manages WebSocket connections to Deriv's demo/real endpoints
- * - Uses existing encrypted access tokens for authentication
+ * - Manages WebSocket connections to Deriv's authenticated Options API endpoints
+ * - Uses OTP-based authentication from current Deriv Options API
  * - Sends/receives JSON messages for trading operations
  * - Handles proposal, buy, contract_update operations
- * - Reuses existing token encryption/decryption from lib/encryption.ts
+ * - Does NOT perform legacy authorize() handshake (OTP authenticates the connection)
  */
 
 import WebSocket from 'ws';
-import { decrypt } from '@/lib/encryption';
 
 export interface DerivWebSocketConfig {
-  accessToken: string;
-  appId: string;
+  authenticatedUrl: string; // Complete authenticated URL with OTP
   accountType: 'demo' | 'real';
 }
 
@@ -55,16 +53,13 @@ export class DerivWebSocketClient {
   }
 
   /**
-   * Get the appropriate WebSocket endpoint based on account type
+   * Get the authenticated WebSocket endpoint
+   * This uses the complete authenticated URL with OTP from the OTP endpoint
    */
   private getWebSocketEndpoint(): string {
-    // Deriv uses different endpoints for demo vs real accounts
-    // Based on current Deriv API documentation
-    if (this.config.accountType === 'demo') {
-      return 'wss://ws.derivws.com/websockets/v3?app_id=' + this.config.appId;
-    } else {
-      return 'wss://ws.derivws.com/websockets/v3?app_id=' + this.config.appId;
-    }
+    // Return the complete authenticated URL provided by the OTP endpoint
+    // This URL already contains the OTP and is ready to use
+    return this.config.authenticatedUrl;
   }
 
   /**
@@ -75,11 +70,9 @@ export class DerivWebSocketClient {
       try {
         const endpoint = this.getWebSocketEndpoint();
         console.log('[DerivWebSocketClient] Connection details:', {
-          endpoint: endpoint,
+          endpoint: endpoint.substring(0, 60) + '...', // Redact OTP for security
           account_type: this.config.accountType,
-          app_id: this.config.appId,
-          token_length: this.config.accessToken.length,
-          token_prefix: this.config.accessToken.substring(0, 10) + '...'
+          hasOtp: endpoint.includes('otp=')
         });
 
         // Set connection timeout for Vercel environment
@@ -94,17 +87,9 @@ export class DerivWebSocketClient {
 
         this.ws.on('open', () => {
           clearTimeout(connectionTimeout);
-          console.log('[DerivWebSocketClient] WebSocket connected successfully');
+          console.log('[DerivWebSocketClient] WebSocket connected successfully (OTP authenticated)');
           this.reconnectAttempts = 0;
-          
-          // Authorize using the access token
-          this.authorize().then(() => {
-            console.log('[DerivWebSocketClient] Authorization successful');
-            resolve();
-          }).catch((error) => {
-            console.error('[DerivWebSocketClient] Authorization failed:', error);
-            reject(error);
-          });
+          resolve();
         });
 
         this.ws.on('message', (data: string) => {
@@ -137,31 +122,6 @@ export class DerivWebSocketClient {
       } catch (error) {
         reject(error);
       }
-    });
-  }
-
-  /**
-   * Authorize the WebSocket connection using access token
-   */
-  private async authorize(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const reqId = this.nextReqId();
-
-      const request: DerivRequest = {
-        authorize: this.config.accessToken,
-        req_id: reqId
-      };
-
-      console.log('[DerivWebSocketClient] Authorization request details:', {
-        req_id: reqId,
-        account_type: this.config.accountType,
-        app_id: this.config.appId,
-        token_prefix: this.config.accessToken.substring(0, 10) + '...',
-        token_length: this.config.accessToken.length
-      });
-
-      this.setupRequestPromise(reqId, resolve, reject, 15000); // Increased timeout to 15 seconds
-      this.send(request);
     });
   }
 
@@ -288,20 +248,17 @@ export class DerivWebSocketClient {
 
   /**
    * Handle reconnection logic
+   * Note: With OTP authentication, reconnection requires a fresh OTP
+   * This should be handled at a higher level (DerivApiClient) by creating a new client
+   * The WebSocket client itself cannot request a new OTP as it lacks account credentials
    */
   private handleReconnect(): void {
-    if (this.reconnectAttempts < this.maxReconnectAttempts) {
-      this.reconnectAttempts++;
-      console.log(`[DerivWebSocketClient] Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
-      
-      setTimeout(() => {
-        this.connect().catch(error => {
-          console.error('[DerivWebSocketClient] Reconnection failed:', error);
-        });
-      }, this.reconnectDelay);
-    } else {
-      console.error('[DerivWebSocketClient] Max reconnection attempts reached');
-    }
+    console.log('[DerivWebSocketClient] WebSocket closed - reconnection requires fresh OTP at higher level');
+    // With OTP flow, automatic reconnection is not safe because:
+    // 1. OTPs are single-use and short-lived
+    // 2. The WebSocket client doesn't have access to account ID/access token
+    // 3. Reconnection must be handled by DerivApiClient with fresh OTP
+    // The calling layer should detect disconnection and create a new client
   }
 
   /**
@@ -337,16 +294,18 @@ export class DerivWebSocketClient {
 }
 
 /**
- * Factory function to create a Deriv WebSocket client using existing encrypted token
- * This should be called with already-decrypted access token to avoid circular dependencies
+ * Factory function to create a Deriv WebSocket client with authenticated URL
+ * This should be called with the complete authenticated WebSocket URL from the OTP endpoint
+ * 
+ * @param authenticatedUrl - Complete authenticated WebSocket URL with OTP (e.g., wss://api.derivws.com/trading/v1/options/ws/demo?otp=...)
+ * @param accountType - Account type ('demo' or 'real')
  */
 export function createDerivWebSocketClient(
-  accessToken: string,
+  authenticatedUrl: string,
   accountType: 'demo' | 'real'
 ): DerivWebSocketClient {
   const config: DerivWebSocketConfig = {
-    accessToken,
-    appId: process.env.DERIV_CLIENT_ID || '',
+    authenticatedUrl,
     accountType
   };
 

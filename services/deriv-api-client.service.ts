@@ -4,6 +4,7 @@
  * 
  * This service:
  * - Wraps WebSocket client for trading operations
+ * - Implements OTP authentication for current Deriv Options API
  * - Implements proposal request for contract pricing
  * - Implements buy operation for contract execution
  * - Implements contract_update for SL/TP modification
@@ -77,13 +78,122 @@ export interface PortfolioResponse {
 }
 
 /**
+ * Request authenticated WebSocket URL using OTP
+ * This implements the current Deriv Options API authentication flow
+ * 
+ * @param derivAccountId - The Deriv account ID (e.g., "DOT94539279")
+ * @param accessToken - The OAuth access token (decrypted)
+ * @param accountType - Account type ('demo' or 'real') - must be 'demo' for execution
+ * @returns Authenticated WebSocket URL with OTP
+ */
+export async function getAuthenticatedWebSocketUrl(
+  derivAccountId: string,
+  accessToken: string,
+  accountType: 'demo' | 'real'
+): Promise<string> {
+  console.log('[DerivApiClient] Requesting authenticated WebSocket URL', {
+    derivAccountId: derivAccountId.substring(0, 8) + '...',
+    accountType: accountType,
+    tokenLength: accessToken.length,
+    tokenPrefix: accessToken.substring(0, 10) + '...'
+  });
+
+  // Demo-only safety check
+  if (accountType !== 'demo') {
+    console.error('[DerivApiClient] EXECUTION_BLOCKED_REAL_ACCOUNT_NOT_SUPPORTED', {
+      derivAccountId: derivAccountId.substring(0, 8) + '...',
+      accountType: accountType
+    });
+    throw new Error('EXECUTION_BLOCKED_REAL_ACCOUNT_NOT_SUPPORTED');
+  }
+
+  const otpEndpoint = `https://api.derivws.com/trading/v1/options/accounts/${derivAccountId}/otp`;
+
+  try {
+    const response = await fetch(otpEndpoint, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[DerivApiClient] OTP request failed', {
+        status: response.status,
+        statusText: response.statusText,
+        derivAccountId: derivAccountId.substring(0, 8) + '...',
+        errorBody: errorText.substring(0, 500)
+      });
+      throw new Error(`OTP generation failed: HTTP ${response.status} - ${response.statusText}`);
+    }
+
+    const responseText = await response.text();
+    let responseData;
+    try {
+      responseData = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error('[DerivApiClient] Failed to parse OTP response', {
+        contentType: response.headers.get('content-type'),
+        responseBody: responseText.substring(0, 500)
+      });
+      throw new Error('Invalid JSON response from OTP endpoint');
+    }
+
+    // Extract WebSocket URL from response
+    // The response format may vary, so we check common field names
+    const wsUrl = responseData.ws_url || responseData.websocket_url || responseData.url;
+
+    if (!wsUrl || typeof wsUrl !== 'string') {
+      console.error('[DerivApiClient] No WebSocket URL in OTP response', {
+        responseFields: Object.keys(responseData),
+        responseType: typeof responseData
+      });
+      throw new Error('No WebSocket URL returned from OTP endpoint');
+    }
+
+    // Validate the URL format
+    if (!wsUrl.startsWith('wss://api.derivws.com/trading/v1/options/ws/')) {
+      console.error('[DerivApiClient] Invalid WebSocket URL format', {
+        urlPrefix: wsUrl.substring(0, 50) + '...',
+        expectedPrefix: 'wss://api.derivws.com/trading/v1/options/ws/'
+      });
+      throw new Error('Invalid WebSocket URL format returned from OTP endpoint');
+    }
+
+    console.log('[DerivApiClient] Successfully obtained authenticated WebSocket URL', {
+      urlPrefix: wsUrl.substring(0, 60) + '...',
+      hasOtp: wsUrl.includes('otp=')
+    });
+
+    // Security: Never log or persist the OTP
+    // The URL is returned directly to the caller and used immediately
+    return wsUrl;
+
+  } catch (error) {
+    console.error('[DerivApiClient] OTP authentication error', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      derivAccountId: derivAccountId.substring(0, 8) + '...'
+    });
+    throw error;
+  }
+}
+
+/**
  * Deriv API Client for trading operations
  */
 export class DerivApiClient {
   private wsClient: DerivWebSocketClient;
+  private derivAccountId: string;
+  private accessToken: string;
+  private accountType: 'demo' | 'real';
 
-  constructor(wsClient: DerivWebSocketClient) {
+  constructor(wsClient: DerivWebSocketClient, derivAccountId: string, accessToken: string, accountType: 'demo' | 'real') {
     this.wsClient = wsClient;
+    this.derivAccountId = derivAccountId;
+    this.accessToken = accessToken;
+    this.accountType = accountType;
   }
 
   /**
@@ -422,17 +532,62 @@ export class DerivApiClient {
   isConnected(): boolean {
     return this.wsClient.isConnected();
   }
+
+  /**
+   * Reconnect with fresh OTP
+   * This is required when the WebSocket connection fails or closes
+   * because OTPs are single-use and short-lived
+   */
+  async reconnect(): Promise<void> {
+    console.log('[DerivApiClient] Reconnecting with fresh OTP', {
+      derivAccountId: this.derivAccountId.substring(0, 8) + '...',
+      accountType: this.accountType
+    });
+
+    // Disconnect existing client
+    this.wsClient.disconnect();
+
+    // Request fresh OTP and get new authenticated URL
+    const freshAuthenticatedUrl = await getAuthenticatedWebSocketUrl(
+      this.derivAccountId,
+      this.accessToken,
+      this.accountType
+    );
+
+    // Create new WebSocket client with fresh authenticated URL
+    const newWsClient = createDerivWebSocketClient(freshAuthenticatedUrl, this.accountType);
+    await newWsClient.connect();
+
+    // Replace the old client
+    this.wsClient = newWsClient;
+
+    console.log('[DerivApiClient] Reconnected successfully with fresh OTP');
+  }
 }
 
 /**
- * Factory function to create a Deriv API client
+ * Factory function to create a Deriv API client with OTP authentication
+ * 
+ * @param derivAccountId - The Deriv account ID (e.g., "DOT94539279")
+ * @param accessToken - The OAuth access token (decrypted)
+ * @param accountType - Account type ('demo' or 'real')
  */
 export async function createDerivApiClient(
+  derivAccountId: string,
   accessToken: string,
   accountType: 'demo' | 'real'
 ): Promise<DerivApiClient> {
-  const wsClient = createDerivWebSocketClient(accessToken, accountType);
+  // Request authenticated WebSocket URL using OTP
+  const authenticatedWsUrl = await getAuthenticatedWebSocketUrl(
+    derivAccountId,
+    accessToken,
+    accountType
+  );
+  
+  // Create WebSocket client with authenticated URL
+  const wsClient = createDerivWebSocketClient(authenticatedWsUrl, accountType);
   await wsClient.connect();
   
-  return new DerivApiClient(wsClient);
+  // Create API client with credentials for potential reconnection
+  return new DerivApiClient(wsClient, derivAccountId, accessToken, accountType);
 }

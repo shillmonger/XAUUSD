@@ -95,7 +95,7 @@ export class TradeParameterResolver {
       
       // Create Deriv API client using WebSocket
       console.log(`[TradeParameterResolver] Creating WebSocket client for ${derivAccount.accountType} account`);
-      apiClient = await createDerivApiClient(accessToken, derivAccount.accountType);
+      apiClient = await createDerivApiClient(derivAccount.derivAccountId, accessToken, derivAccount.accountType);
       
       // Fetch account information to get current balance
       console.log(`[TradeParameterResolver] Fetching account info from Deriv API`);
