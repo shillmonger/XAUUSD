@@ -160,7 +160,7 @@ export class DerivWebSocketClient {
         token_length: this.config.accessToken.length
       });
 
-      this.setupRequestPromise(reqId, resolve, reject, 10000);
+      this.setupRequestPromise(reqId, resolve, reject, 15000); // Increased timeout to 15 seconds
       this.send(request);
     });
   }
@@ -242,7 +242,13 @@ export class DerivWebSocketClient {
           full_error: message.error,
           msg_type: message.msg_type
         });
-        reject(new Error(message.error.message || 'Deriv API error'));
+        
+        // Special handling for authorization errors
+        if (message.error.code === 'InvalidToken' || message.error.code === 'AuthorizationRequired') {
+          reject(new Error(`Deriv authorization failed: ${message.error.message} (Code: ${message.error.code})`));
+        } else {
+          reject(new Error(message.error.message || 'Deriv API error'));
+        }
       } else {
         resolve(message);
       }

@@ -73,6 +73,7 @@ export class TradeParameterResolver {
       
       // Check if token is expired
       if (derivAccount.tokenExpiresAt < new Date()) {
+        console.log(`[TradeParameterResolver] Token expired at ${derivAccount.tokenExpiresAt}, current time ${new Date()}`);
         return {
           success: false,
           error: 'ACCESS_TOKEN_EXPIRED'
@@ -83,7 +84,9 @@ export class TradeParameterResolver {
       let accessToken: string;
       try {
         accessToken = decrypt(derivAccount.accessTokenEncrypted);
+        console.log(`[TradeParameterResolver] Token decrypted successfully, length: ${accessToken.length}`);
       } catch (error) {
+        console.error(`[TradeParameterResolver] Token decryption failed:`, error);
         return {
           success: false,
           error: 'TOKEN_DECRYPTION_FAILED'
@@ -91,9 +94,11 @@ export class TradeParameterResolver {
       }
       
       // Create Deriv API client using WebSocket
+      console.log(`[TradeParameterResolver] Creating WebSocket client for ${derivAccount.accountType} account`);
       apiClient = await createDerivApiClient(accessToken, derivAccount.accountType);
       
       // Fetch account information to get current balance
+      console.log(`[TradeParameterResolver] Fetching account info from Deriv API`);
       const accountInfo = await apiClient.getAccountInfo();
       const currentBalance = accountInfo.balance;
       
@@ -111,6 +116,11 @@ export class TradeParameterResolver {
       
     } catch (error) {
       console.error(`[TradeParameterResolver] Balance fetch error:`, error);
+      console.error(`[TradeParameterResolver] Error details:`, {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        name: error instanceof Error ? error.name : 'Unknown',
+        stack: error instanceof Error ? error.stack : undefined
+      });
       
       // Make sure to disconnect the client on error
       if (apiClient) {
@@ -341,15 +351,17 @@ export class TradeParameterResolver {
       const balanceResult = await this.fetchCurrentDerivBalance(derivAccount);
       
       if (!balanceResult.success || balanceResult.currentBalance === undefined) {
-        result.rejectionReason = balanceResult.error || 'BALANCE_FETCH_FAILED';
-        console.log(`[TradeParameterResolver] Rejected: ${result.rejectionReason}`);
-        return result;
+        // Fallback: Use database balance if API fetch fails
+        console.log(`[TradeParameterResolver] Balance fetch failed (${balanceResult.error}), using database balance as fallback: ${result.databaseBalance}`);
+        result.currentBalance = result.databaseBalance;
+        result.balanceSynchronized = false;
+        // Continue with database balance instead of rejecting
+      } else {
+        result.currentBalance = balanceResult.currentBalance;
+        
+        // Step 3: Synchronize database balance if needed
+        result.balanceSynchronized = await this.synchronizeBalance(derivAccount, result.currentBalance);
       }
-      
-      result.currentBalance = balanceResult.currentBalance;
-      
-      // Step 3: Synchronize database balance if needed
-      result.balanceSynchronized = await this.synchronizeBalance(derivAccount, result.currentBalance);
       
       // Step 4: Match lot size rule
       const lotSizeResult = await this.matchLotSizeRule(result.currentBalance);
