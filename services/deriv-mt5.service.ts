@@ -41,12 +41,19 @@ export interface MT5Account {
   group?: string;
 }
 
-export function isSupportedMT5CFDAccount(account: Partial<MT5Account> | Record<string, any> | null | undefined): boolean {
+type MT5LikeAccount = Partial<MT5Account> & {
+  mt5Login?: string;
+  mt5AccountType?: 'demo' | 'real';
+  [key: string]: any;
+};
+
+export function isSupportedMT5CFDAccount(account: MT5LikeAccount | Partial<MT5Account> | null | undefined): boolean {
   if (!account) return false;
 
-  const login = String(account.login ?? account.mt5Login ?? '').trim();
-  const server = String(account.server ?? '').trim().toLowerCase();
-  const accountType = String(account.accountType ?? account.mt5AccountType ?? '').trim().toLowerCase();
+  const login = String((account as any).login ?? (account as any).mt5Login ?? '').trim();
+  const server = String((account as any).server ?? '').trim().toLowerCase();
+  const rawType = String((account as any).accountType ?? (account as any).mt5AccountType ?? '').trim().toLowerCase();
+  const accountType = rawType === 'demo' || rawType === 'real' ? rawType : '';
 
   if (!login || !/^\d+$/.test(login)) return false;
   if (!['demo', 'real'].includes(accountType)) return false;
