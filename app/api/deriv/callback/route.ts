@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import OAuthState from '@/models/OAuthState';
+import DerivAccount from '@/models/DerivAccount';
+import User from '@/models/User';
+import { encrypt } from '@/lib/encryption';
+import crypto from 'crypto';
 
 export async function GET(request: NextRequest) {
   try {
@@ -89,10 +93,45 @@ export async function GET(request: NextRequest) {
     // MT5 login, server, balance, or broker execution API. The EA/bridge must
     // register and verify those MT5 details separately.
     console.log('[Deriv Callback] OAuth completed; MT5 bridge verification is required');
+    const accountType = (oauthState.targetAccountType as 'demo' | 'real') || 'demo';
+    const bridgePairingToken = crypto.randomBytes(32).toString('hex');
+    const bridgePairingTokenHash = crypto
+      .createHash('sha256')
+      .update(bridgePairingToken)
+      .digest('hex');
+    const pendingAccountId = `oauth:${oauthState.userId.toString()}:${accountType}`;
+    const tokenExpiresAt = new Date(Date.now() + (tokenData.expires_in || 3600) * 1000);
+    const encryptedAccessToken = encrypt(tokenData.access_token);
+
+    await DerivAccount.findOneAndUpdate(
+      { userId: oauthState.userId, accountType, accountPlatform: 'mt5' },
+      {
+        userId: oauthState.userId,
+        broker: 'deriv',
+        derivAccountId: pendingAccountId,
+        accountType,
+        accountPlatform: 'mt5',
+        product: 'cfd',
+        connectionStatus: 'pending',
+        accessTokenEncrypted: encryptedAccessToken,
+        tokenExpiresAt,
+        bridgePairingTokenHash,
+        accountStatus: 'pending_bridge_verification',
+        botStatus: 'OFF',
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    const user = await User.findById(oauthState.userId);
+    if (user) {
+      user.activeDerivAccountType = accountType;
+      await user.save();
+    }
+
     await OAuthState.deleteOne({ state });
 
     return NextResponse.redirect(
-      new URL('/UserDashboard/connect-deriv?success=oauth_authorized', process.env.NEXT_PUBLIC_APP_URL!)
+      new URL(`/UserDashboard/connect-deriv?success=oauth_authorized&bridge_token=${bridgePairingToken}`, process.env.NEXT_PUBLIC_APP_URL!)
     );
 
   } catch (error) {

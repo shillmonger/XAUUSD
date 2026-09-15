@@ -208,6 +208,7 @@ export default function ConnectDerivPage() {
   const [subscriptionStatus] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
+  const [bridgePairingToken, setBridgePairingToken] = useState("");
 
   // Image slider state
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -265,6 +266,11 @@ export default function ConnectDerivPage() {
     const urlParams = new URLSearchParams(window.location.search);
     const success = urlParams.get('success');
     const error = urlParams.get('error');
+    const bridgeToken = urlParams.get('bridge_token');
+
+    if (bridgeToken) {
+      setBridgePairingToken(bridgeToken);
+    }
 
     if (success === 'connected') {
       toast.success(
@@ -279,7 +285,7 @@ export default function ConnectDerivPage() {
       toast.success(
         <div className="flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-          <span>Deriv OAuth authorized. Connect the MT5 EA bridge to verify your CFD account before trading.</span>
+          <span>Deriv OAuth authorized. Use the pairing token below to verify your CFD account with the MT5 EA.</span>
         </div>
       );
       window.history.replaceState({}, '', window.location.pathname);
@@ -612,6 +618,20 @@ export default function ConnectDerivPage() {
                         </p>
                       </div>
                     </div>
+
+                    {bridgePairingToken && (
+                      <div className="mt-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-3 space-y-2">
+                        <p className="text-xs font-bold text-emerald-700 dark:text-emerald-400">
+                          MT5 EA pairing token
+                        </p>
+                        <code className="block break-all rounded bg-background/70 p-2 text-[10px] text-foreground">
+                          {bridgePairingToken}
+                        </code>
+                        <p className="text-xs text-muted-foreground">
+                          Enter this token in the EA configuration. The EA must call <code>/api/deriv/mt5/bridge/verify</code> with the MT5 login, server, account type, balance, and currency.
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   {/* Stats/Info Row */}

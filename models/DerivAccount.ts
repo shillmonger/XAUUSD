@@ -23,6 +23,7 @@ export interface IDerivAccount extends Document {
   mt5Login?: string;
   mt5Server?: string;
   mt5AccountType?: 'demo' | 'real';
+  bridgePairingTokenHash?: string;
   // Bot execution state
   botStatus?: 'ACTIVE' | 'PAUSED' | 'OFF';
   createdAt: Date;
@@ -104,6 +105,10 @@ const DerivAccountSchema: Schema<IDerivAccount> = new Schema(
     mt5AccountType: {
       type: String,
       enum: ['demo', 'real'],
+    },
+    bridgePairingTokenHash: {
+      type: String,
+      select: false,
     },
     // Bot execution state
     botStatus: {
