@@ -1,90 +1,19 @@
 /**
- * Deriv Contract Mapper Service
- * Maps trading intent to Deriv contract types
- * Backend-only - AI should never produce these values
+ * REMOVED — Deriv Options Contract Mapper
+ *
+ * This file has been moved to:
+ *   services/_deprecated_options/deriv-contract-mapper.service.ts
+ *
+ * It MUST NOT be used in the active trading path.
+ * It mapped: BUY -> MULTUP, SELL -> MULTDOWN
+ *
+ * In the MT5/CFD path, direction is represented directly as 'BUY' | 'SELL'
+ * in the MT5TradeSignal interface (services/mt5-execution.service.ts).
+ * No contract-type mapping is needed or permitted.
  */
+throw new Error(
+  '[deriv-contract-mapper.service] This Options contract mapper has been removed. ' +
+  'MT5/CFD uses BUY/SELL directly — no MULTUP/MULTDOWN mapping exists.'
+);
 
-export interface ContractMappingResult {
-  contractType: string;
-  direction: 'BUY' | 'SELL';
-}
-
-/**
- * Map BUY/SELL direction to Deriv Multiplier contract types
- * 
- * ENFORCED MAPPING:
- * - BUY → MULTUP
- * - SELL → MULTDOWN
- * 
- * AI must NEVER produce these contract types
- * Backend determines these based on trading intent
- * 
- * @param direction - Trading direction
- * @returns Contract type mapping
- */
-export function mapDirectionToContractType(direction: 'BUY' | 'SELL'): ContractMappingResult {
-  const mapping: Record<'BUY' | 'SELL', string> = {
-    'BUY': 'MULTUP',
-    'SELL': 'MULTDOWN'
-  };
-  
-  const contractType = mapping[direction];
-  
-  if (!contractType) {
-    throw new Error(`Invalid direction: ${direction}. Must be BUY or SELL.`);
-  }
-  
-  console.log('[Contract Mapper] Direction mapped:', {
-    direction,
-    contractType
-  });
-  
-  return {
-    contractType,
-    direction
-  };
-}
-
-/**
- * Validate that AI output does not contain Deriv-specific fields
- * This prevents the AI from generating contract-specific data
- * 
- * @param aiSignal - AI-generated signal
- * @returns Validation result
- */
-export function validateAIOutput(aiSignal: any): {
-  valid: boolean;
-  reason?: string;
-} {
-  const forbiddenFields = [
-    'contractType',
-    'MULTUP',
-    'MULTDOWN',
-    'CALL',
-    'PUT',
-    'multiplier',
-    'currency',
-    'underlying_symbol',
-    'derivSymbol',
-    'proposal',
-    'duration',
-    'duration_unit'
-  ];
-  
-  const detectedFields: string[] = [];
-  
-  for (const field of forbiddenFields) {
-    if (field in aiSignal) {
-      detectedFields.push(field);
-    }
-  }
-  
-  if (detectedFields.length > 0) {
-    return {
-      valid: false,
-      reason: `AI must not produce Deriv-specific fields: ${detectedFields.join(', ')}`
-    };
-  }
-  
-  return { valid: true };
-}
+export {};

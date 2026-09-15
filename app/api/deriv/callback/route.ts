@@ -4,6 +4,7 @@ import User from '@/models/User';
 import DerivAccount from '@/models/DerivAccount';
 import OAuthState from '@/models/OAuthState';
 import { encrypt } from '@/lib/encryption';
+import { createDerivMT5Service } from '@/services/deriv-mt5.service';
 
 export async function GET(request: NextRequest) {
   try {
@@ -86,102 +87,60 @@ export async function GET(request: NextRequest) {
     const tokenData = JSON.parse(responseText);
     const accessToken = tokenData.access_token;
 
-    // Verify the connected Deriv account using the access token
-    const accountResponse = await fetch('https://api.derivws.com/trading/v1/options/accounts', {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Deriv-App-ID': process.env.DERIV_CLIENT_ID!,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    // Log account verification response
-    const accountResponseText = await accountResponse.text();
-    console.error('Account verification response:', {
-      status: accountResponse.status,
-      statusText: accountResponse.statusText,
-      contentType: accountResponse.headers.get('content-type'),
-      body: accountResponseText.substring(0, 500),
-    });
-
-    if (!accountResponse.ok) {
-      console.error('Account verification failed:', accountResponse.status, accountResponseText);
+    // Verify the connected Deriv MT5/CFD account using the MT5 service
+    console.log('[Deriv Callback] Starting MT5 account verification');
+    
+    const mt5Service = createDerivMT5Service(accessToken, process.env.DERIV_CLIENT_ID!);
+    
+    // Determine target account type from OAuth state or default to demo
+    const targetAccountType = (oauthState.targetAccountType as 'demo' | 'real') || 'demo';
+    
+    console.log('[Deriv Callback] Looking for MT5 account type:', targetAccountType);
+    
+    // Find the appropriate MT5 account
+    const mt5AccountResult = await mt5Service.findMT5Account(targetAccountType);
+    
+    if (!mt5AccountResult.found || !mt5AccountResult.account) {
+      console.error('[Deriv Callback] MT5 account not found or invalid:', mt5AccountResult.error);
       await OAuthState.deleteOne({ state });
+      
+      // Determine if this is because no MT5 accounts exist at all
+      if (mt5AccountResult.error?.includes('No MT5 accounts found')) {
+        return NextResponse.redirect(
+          new URL('/UserDashboard/connect-deriv?error=no_mt5_accounts', process.env.NEXT_PUBLIC_APP_URL!)
+        );
+      }
+      
       return NextResponse.redirect(
         new URL('/UserDashboard/connect-deriv?error=account_verification_failed', process.env.NEXT_PUBLIC_APP_URL!)
       );
     }
 
-    let accountData;
-    try {
-      accountData = JSON.parse(accountResponseText);
-    } catch (error) {
-      throw new Error(
-        `Deriv returned non-JSON for account. Status: ${accountResponse.status}. ` +
-        `Response: ${accountResponseText.slice(0, 300)}`
-      );
-    }
+    const mt5Account = mt5AccountResult.account;
     
-    // The accounts endpoint returns data array with account objects
-    if (!accountData.data || !Array.isArray(accountData.data) || accountData.data.length === 0) {
-      console.error('Invalid account data received - no accounts found');
+    // Verify this is NOT an Options account
+    if (mt5Account.server.includes('options') || mt5Account.server.includes('multipliers')) {
+      console.error('[Deriv Callback] Detected Options/Multipliers account, rejecting');
       await OAuthState.deleteOne({ state });
       return NextResponse.redirect(
-        new URL('/UserDashboard/connect-deriv?error=invalid_account_data', process.env.NEXT_PUBLIC_APP_URL!)
+        new URL('/UserDashboard/connect-deriv?error=options_account_not_supported', process.env.NEXT_PUBLIC_APP_URL!)
       );
     }
 
-    // Select account based on targetAccountType from OAuth state, or default preference
-    const accounts = accountData.data;
-    const targetAccountType = oauthState.targetAccountType || 'demo';
+    const derivAccountId = mt5Account.login; // MT5 uses login as account ID
+    const accountType = mt5Account.accountType;
+    const balance = mt5Account.balance.toString();
+    const currency = mt5Account.currency;
+    const accountStatus = mt5Account.accountStatus;
+    const mt5Server = mt5Account.server;
     
-    let selectedAccount = accounts.find((acc: any) => 
-      acc.status === 'active' && acc.account_type === targetAccountType
-    );
-    
-    // Fallback to demo if target type not found
-    if (!selectedAccount && targetAccountType !== 'demo') {
-      selectedAccount = accounts.find((acc: any) => 
-        acc.status === 'active' && acc.account_type === 'demo'
-      );
-    }
-    
-    // Fallback to real if demo not found
-    if (!selectedAccount) {
-      selectedAccount = accounts.find((acc: any) => acc.status === 'active' && acc.account_type === 'real');
-    }
-    
-    if (!selectedAccount) {
-      console.error('No active accounts found');
-      await OAuthState.deleteOne({ state });
-      return NextResponse.redirect(
-        new URL('/UserDashboard/connect-deriv?error=no_active_account', process.env.NEXT_PUBLIC_APP_URL!)
-      );
-    }
-
-    // Validate required fields
-    if (!selectedAccount.account_id || !selectedAccount.account_type) {
-      console.error('Selected account missing required fields');
-      await OAuthState.deleteOne({ state });
-      return NextResponse.redirect(
-        new URL('/UserDashboard/connect-deriv?error=invalid_account_data', process.env.NEXT_PUBLIC_APP_URL!)
-      );
-    }
-
-    const derivAccountId = selectedAccount.account_id;
-    const accountType = selectedAccount.account_type === 'demo' ? 'demo' : 'real';
-    const balance = selectedAccount.balance || '0';
-    const currency = selectedAccount.currency || 'USD';
-    const accountStatus = selectedAccount.status || 'unknown';
-    const group = selectedAccount.group || 'unknown';
-    
-    console.log('Selected Deriv account:', {
-      derivAccountId: derivAccountId.substring(0, 8) + '...',
+    console.log('[Deriv Callback] Verified MT5 account:', {
+      derivAccountId: derivAccountId.substring(0, 6) + '...',
       accountType,
       status: accountStatus,
       balance: balance,
-      currency: currency
+      currency: currency,
+      server: mt5Server
     });
 
     // Check if this Deriv account is already connected to another user
@@ -205,7 +164,7 @@ export async function GET(request: NextRequest) {
     // Encrypt the access token before storage
     const encryptedAccessToken = encrypt(accessToken);
 
-    // Store or update the Deriv account connection
+    // Store or update the Deriv MT5/CFD account connection
     if (existingConnection) {
       // Update existing connection (same account ID)
       existingConnection.accessTokenEncrypted = encryptedAccessToken;
@@ -216,11 +175,15 @@ export async function GET(request: NextRequest) {
       existingConnection.balance = balance;
       existingConnection.currency = currency;
       existingConnection.accountStatus = accountStatus;
-      existingConnection.group = group;
+      existingConnection.accountPlatform = 'mt5';
+      existingConnection.product = 'cfd';
+      existingConnection.mt5Login = derivAccountId;
+      existingConnection.mt5Server = mt5Server;
+      existingConnection.mt5AccountType = accountType;
       existingConnection.disconnectedAt = undefined; // Clear disconnect time if reconnecting
       await existingConnection.save();
     } else if (existingUserAccountType) {
-      // User already has this account type connected, update it with new account
+      // User already has this account type connected, update it with new MT5 account
       existingUserAccountType.derivAccountId = derivAccountId;
       existingUserAccountType.accessTokenEncrypted = encryptedAccessToken;
       existingUserAccountType.tokenExpiresAt = tokenExpiresAt;
@@ -230,16 +193,22 @@ export async function GET(request: NextRequest) {
       existingUserAccountType.balance = balance;
       existingUserAccountType.currency = currency;
       existingUserAccountType.accountStatus = accountStatus;
-      existingUserAccountType.group = group;
+      existingUserAccountType.accountPlatform = 'mt5';
+      existingUserAccountType.product = 'cfd';
+      existingUserAccountType.mt5Login = derivAccountId;
+      existingUserAccountType.mt5Server = mt5Server;
+      existingUserAccountType.mt5AccountType = accountType;
       existingUserAccountType.disconnectedAt = undefined;
       await existingUserAccountType.save();
     } else {
-      // Create new connection
+      // Create new MT5/CFD connection
       await DerivAccount.create({
         userId: oauthState.userId,
         broker: 'deriv',
         derivAccountId,
         accountType,
+        accountPlatform: 'mt5',
+        product: 'cfd',
         connectionStatus: 'connected',
         accessTokenEncrypted: encryptedAccessToken,
         tokenExpiresAt,
@@ -248,7 +217,9 @@ export async function GET(request: NextRequest) {
         balance: balance,
         currency: currency,
         accountStatus: accountStatus,
-        group: group,
+        mt5Login: derivAccountId,
+        mt5Server: mt5Server,
+        mt5AccountType: accountType,
       });
     }
 

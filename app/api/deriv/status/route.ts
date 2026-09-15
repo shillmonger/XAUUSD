@@ -50,16 +50,33 @@ export async function GET(request: NextRequest) {
       console.log('Set default activeDerivAccountType to demo');
     }
 
-    // Find the user's Deriv account connection for the active account type
+    // Find the user's Deriv MT5/CFD account connection for the active account type
     const derivAccount = await DerivAccount.findOne({ 
       userId,
       accountType: user.activeDerivAccountType || 'demo',
+      accountPlatform: 'mt5',
       connectionStatus: 'connected'
     });
 
-    console.log('Found derivAccount for type:', user.activeDerivAccountType || 'demo', derivAccount ? 'YES' : 'NO');
+    console.log('Found MT5 derivAccount for type:', user.activeDerivAccountType || 'demo', derivAccount ? 'YES' : 'NO');
 
     if (!derivAccount) {
+      // Check if there's an old Options account and mark it as invalid
+      const oldOptionsAccount = await DerivAccount.findOne({ 
+        userId,
+        accountType: user.activeDerivAccountType || 'demo',
+        accountPlatform: { $in: ['options', 'unknown'] },
+        connectionStatus: 'connected'
+      });
+
+      if (oldOptionsAccount) {
+        console.log('[Deriv Status] Found old Options account, marking as invalid');
+        oldOptionsAccount.connectionStatus = 'invalid';
+        oldOptionsAccount.accountPlatform = 'options';
+        oldOptionsAccount.product = 'options';
+        await oldOptionsAccount.save();
+      }
+
       return NextResponse.json({
         connected: false,
       });
@@ -77,11 +94,25 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    // Verify this is actually an MT5/CFD account
+    if (derivAccount.accountPlatform !== 'mt5' || derivAccount.product !== 'cfd') {
+      console.error('[Deriv Status] Account is not MT5/CFD, marking as invalid');
+      derivAccount.connectionStatus = 'invalid';
+      await derivAccount.save();
+      
+      return NextResponse.json({
+        connected: false,
+        error: 'invalid_account_type',
+      });
+    }
+
     // Return safe connection information only
     return NextResponse.json({
       connected: true,
       accountId: derivAccount.derivAccountId,
       accountType: derivAccount.accountType.toUpperCase(),
+      accountPlatform: derivAccount.accountPlatform,
+      product: derivAccount.product,
       connectionStatus: derivAccount.connectionStatus,
       connectedAt: derivAccount.connectedAt,
       lastVerifiedAt: derivAccount.lastVerifiedAt,
@@ -90,6 +121,7 @@ export async function GET(request: NextRequest) {
       accountStatus: derivAccount.accountStatus || 'unknown',
       botStatus: derivAccount.botStatus || 'OFF',
       activeAccountType: user.activeDerivAccountType || 'demo',
+      mt5Server: derivAccount.mt5Server,
     });
 
   } catch (error) {

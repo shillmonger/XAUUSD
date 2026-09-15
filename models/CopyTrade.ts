@@ -8,44 +8,63 @@ export interface ICopyTrade extends Document {
   
   // Broker information
   broker: string;
+  platform: 'mt5' | 'options' | 'unknown';
+  product: 'cfd' | 'options' | 'multipliers' | 'unknown';
   accountType: 'demo' | 'real';
   
   // ORIGINAL SIGNAL INTENT (Preserve for Audit)
-  asset: string;  // was: symbol
+  asset: string;  // XAUUSD
   direction: 'BUY' | 'SELL';
-  sourceOrderType: 'MARKET' | 'LIMIT' | 'STOP';  // was: orderType
-  sourceEntryPrice?: number;  // was: requestedEntry
+  sourceOrderType: 'MARKET' | 'LIMIT' | 'STOP';
+  sourceEntryPrice?: number;
   stopLoss?: number;
   takeProfit?: number;  // Single executed TP
   takeProfits?: number[];  // All original TPs for audit
-  stake?: number;  // was: lotSize
+  stake?: number;  // Amount to trade
   
-  // DERIV EXECUTION DETAILS (NEW - Multipliers only)
+  // MT5/CFD EXECUTION DETAILS
+  mt5Symbol?: string;  // MT5 symbol format (e.g., XAUUSD)
+  mt5PositionId?: string;  // MT5 position/ticket ID
+  mt5ExecutionId?: string;  // MT5 execution ID
+  mt5Volume?: number;  // MT5 lot size
+  mt5EntryPrice?: number;  // Actual MT5 entry price
+  mt5StopLoss?: number;  // Actual MT5 stop loss
+  mt5TakeProfit?: number;  // Actual MT5 take profit
+  mt5Server?: string;  // MT5 server
+  mt5Login?: string;  // MT5 login
+  mt5Profit?: number;  // Current profit/loss
+  
+  // MT5 Signal Queue Integration
+  mt5SignalId?: string;  // ID of signal in MT5 queue
+  sentToMT5At?: Date;  // When signal was sent to MT5 EA
+  mt5ExecutionStatus?: 'pending' | 'sent' | 'executed' | 'failed';
+  
+  // LEGACY OPTIONS/MULTIPLIERS DETAILS (Deprecated - kept for historical records)
   derivUnderlyingSymbol?: string;
-  derivContractType?: string;  // MULTUP/MULTDOWN only
-  legacyDerivContractType?: string;  // Historical Options (CALL/PUT)
-  multiplier?: number;
+  derivContractType?: string;  // MULTUP/MULTDOWN (deprecated)
+  legacyDerivContractType?: string;  // Historical Options CALL/PUT (deprecated)
+  multiplier?: number;  // Deprecated
   currency?: string;
-  proposalId?: string;
-  contractId?: string;  // was: brokerContractId
-  buyPrice?: number;
-  referenceSpot?: number;  // Used for SL/TP calculation
-  actualEntrySpot?: number;  // Actual execution price
-  contractStatus?: string;
-  actualDerivStopLossAmount?: number;
-  actualDerivTakeProfitAmount?: number;
-  sltpConversionMethod?: string;
-  sltpValidationStatus?: 'CANDIDATE' | 'DEMO_VALIDATED' | 'PRODUCTION_READY';
+  proposalId?: string;  // Deprecated
+  contractId?: string;  // Deprecated Options contract ID
+  buyPrice?: number;  // Deprecated
+  referenceSpot?: number;  // Deprecated
+  actualEntrySpot?: number;  // Deprecated
+  contractStatus?: string;  // Deprecated
+  actualDerivStopLossAmount?: number;  // Deprecated
+  actualDerivTakeProfitAmount?: number;  // Deprecated
+  sltpConversionMethod?: string;  // Deprecated
+  sltpValidationStatus?: 'CANDIDATE' | 'DEMO_VALIDATED' | 'PRODUCTION_READY';  // Deprecated
   
   // Legacy fields (keep for backward compatibility)
-  executionPrice?: number;  // DEPRECATED: use actualEntrySpot
+  executionPrice?: number;  // DEPRECATED: use mt5EntryPrice
   requestedEntry?: number;  // DEPRECATED: use sourceEntryPrice
   lotSize?: number;  // DEPRECATED: use stake
-  brokerContractId?: string;  // DEPRECATED: use contractId
-  brokerTransactionId?: string;
+  brokerContractId?: string;  // DEPRECATED: use mt5PositionId
+  brokerTransactionId?: string;  // DEPRECATED: use mt5ExecutionId
   
   // Trade status
-  status: 'PENDING' | 'OPEN' | 'CLOSED' | 'FAILED' | 'CANCELLED' | 'REJECTED_LIMIT_NOT_SUPPORTED';
+  status: 'PENDING' | 'SENT_TO_MT5' | 'OPEN' | 'CLOSED' | 'FAILED' | 'CANCELLED' | 'REJECTED_LIMIT_NOT_SUPPORTED';
   failureReason?: string;
   brokerErrorCode?: string;
   
@@ -81,6 +100,16 @@ const CopyTradeSchema: Schema<ICopyTrade> = new Schema(
     broker: {
       type: String,
       default: 'deriv',
+    },
+    platform: {
+      type: String,
+      enum: ['mt5', 'unknown'],
+      default: 'unknown',
+    },
+    product: {
+      type: String,
+      enum: ['cfd', 'unknown'],
+      default: 'unknown',
     },
     accountType: {
       type: String,
@@ -119,7 +148,51 @@ const CopyTradeSchema: Schema<ICopyTrade> = new Schema(
       type: Number,
     },
     
-    // DERIV EXECUTION DETAILS (NEW - Multipliers only)
+    // MT5/CFD EXECUTION DETAILS
+    mt5Symbol: {
+      type: String,
+    },
+    mt5PositionId: {
+      type: String,
+    },
+    mt5ExecutionId: {
+      type: String,
+    },
+    mt5Volume: {
+      type: Number,
+    },
+    mt5EntryPrice: {
+      type: Number,
+    },
+    mt5StopLoss: {
+      type: Number,
+    },
+    mt5TakeProfit: {
+      type: Number,
+    },
+    mt5Server: {
+      type: String,
+    },
+    mt5Login: {
+      type: String,
+    },
+    mt5Profit: {
+      type: Number,
+    },
+    
+    // MT5 Signal Queue Integration
+    mt5SignalId: {
+      type: String,
+    },
+    sentToMT5At: {
+      type: Date,
+    },
+    mt5ExecutionStatus: {
+      type: String,
+      enum: ['pending', 'sent', 'executed', 'failed'],
+    },
+    
+    // LEGACY OPTIONS/MULTIPLIERS DETAILS (Deprecated - kept for historical records)
     derivUnderlyingSymbol: {
       type: String,
     },
@@ -187,7 +260,7 @@ const CopyTradeSchema: Schema<ICopyTrade> = new Schema(
     // Trade status
     status: {
       type: String,
-      enum: ['PENDING', 'OPEN', 'CLOSED', 'FAILED', 'CANCELLED', 'REJECTED_LIMIT_NOT_SUPPORTED'],
+      enum: ['PENDING', 'SENT_TO_MT5', 'OPEN', 'CLOSED', 'FAILED', 'CANCELLED', 'REJECTED_LIMIT_NOT_SUPPORTED'],
       default: 'PENDING',
     },
     failureReason: {
@@ -225,20 +298,28 @@ CopyTradeSchema.index({ signalId: 1, userId: 1, derivAccountId: 1 }, { unique: t
 CopyTradeSchema.index({ userId: 1 });
 // Index for derivAccountId lookup
 CopyTradeSchema.index({ derivAccountId: 1 });
+// Index for platform/product filtering
+CopyTradeSchema.index({ platform: 1, product: 1 });
 // Index for status filtering
 CopyTradeSchema.index({ status: 1 });
 // Index for account type filtering
 CopyTradeSchema.index({ accountType: 1 });
-// Index for contract ID lookup
+// Index for MT5-specific lookups
+CopyTradeSchema.index({ mt5PositionId: 1 });
+CopyTradeSchema.index({ mt5ExecutionId: 1 });
+CopyTradeSchema.index({ mt5SignalId: 1 });
+// Index for contract ID lookup (legacy, kept for backward compatibility)
 CopyTradeSchema.index({ contractId: 1 });
 // Index for date-based queries
 CopyTradeSchema.index({ processedAt: -1 });
 // Index for open trades monitoring
-CopyTradeSchema.index({ status: 1, accountType: 1 });
+CopyTradeSchema.index({ status: 1, accountType: 1, platform: 1 });
 // Index for asset lookup
 CopyTradeSchema.index({ asset: 1 });
 // Index for source order type
 CopyTradeSchema.index({ sourceOrderType: 1 });
+// Index for MT5 execution status tracking
+CopyTradeSchema.index({ mt5ExecutionStatus: 1, sentToMT5At: 1 });
 
 const CopyTrade: Model<ICopyTrade> = mongoose.models.CopyTrade || mongoose.model<ICopyTrade>('CopyTrade', CopyTradeSchema);
 

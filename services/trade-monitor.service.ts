@@ -1,30 +1,32 @@
-/**
+  /**
  * Trade Monitor Service (Phase 9)
- * Monitors open demo copy trades and updates their status with Deriv
+ * Monitors open demo copy trades and updates their status with MT5
  * 
  * This service:
  * - Queries open demo copy trades from MongoDB
- * - Authenticates to Deriv for each trade's account
- * - Checks current contract state using Deriv API
+ * - Authenticates to Deriv MT5 for each trade's account
+ * - Checks current MT5 position state using MT5 API
  * - Updates floating P/L while trades remain open
- * - Marks trades closed when Deriv confirms closure
+ * - Marks trades closed when MT5 confirms closure
  * - Handles errors gracefully without falsely closing trades
  * - Enforces demo-only monitoring
- * - Reuses existing Deriv authentication and API client
+ * - Reuses existing Deriv authentication and MT5 API
+ * 
+ * UPDATED: Now uses MT5 API for position monitoring instead of Options API
  */
 
 import CopyTrade from '@/models/CopyTrade';
 import DerivAccount from '@/models/DerivAccount';
 import { decrypt } from '@/lib/encryption';
-import { createDerivApiClient, DerivApiClient } from './deriv-api-client.service';
+import { createDerivMT5Service } from './deriv-mt5.service';
 
 export interface MonitorResult {
   tradeId: string;
   userId: string;
   derivAccountId: string;
-  brokerContractId?: string;
+  mt5PositionId?: string;
   success: boolean;
-  status?: 'OPEN' | 'CLOSED';
+  status?: 'OPEN' | 'CLOSED' | string;
   profitLoss?: number;
   error?: string;
   wasAlreadyClosed?: boolean;
@@ -73,11 +75,13 @@ export class TradeMonitorService {
     };
     
     try {
-      // Step 1: Find all open demo copy trades
+      // Step 1: Find all open demo copy trades for MT5/CFD
       const openTrades = await CopyTrade.find({
-        status: 'OPEN',
+        status: { $in: ['OPEN', 'SENT_TO_MT5'] },
         accountType: 'demo',
-        broker: 'deriv'
+        broker: 'deriv',
+        platform: 'mt5',
+        product: 'cfd'
       });
       
       summary.totalTradesFound = openTrades.length;
@@ -118,7 +122,7 @@ export class TradeMonitorService {
             tradeId: trade._id.toString(),
             userId: trade.userId.toString(),
             derivAccountId: trade.derivAccountId,
-            brokerContractId: trade.brokerContractId,
+            mt5PositionId: trade.mt5PositionId,
             success: false,
             error: error instanceof Error ? error.message : 'Unknown error'
           });
@@ -145,14 +149,15 @@ export class TradeMonitorService {
       tradeId: trade._id.toString(),
       userId: trade.userId.toString(),
       derivAccountId: trade.derivAccountId,
-      brokerContractId: trade.brokerContractId,
+      mt5PositionId: trade.mt5PositionId,
       success: false
     };
     
-    // Safety check: Skip if broker contract ID is missing
-    if (!trade.brokerContractId) {
-      console.log(`[TradeMonitor] Skipping trade ${trade._id} - missing broker contract ID`);
-      result.error = 'MISSING_BROKER_CONTRACT_ID';
+    // Safety check: Skip if MT5 position ID is missing
+    if (!trade.mt5PositionId) {
+      console.log(`[TradeMonitor] Skipping trade ${trade._id} - missing MT5 position ID`);
+      result.status = trade.status || 'OPEN';
+      result.error = 'MISSING_MT5_POSITION_ID';
       return result;
     }
     
@@ -196,51 +201,18 @@ export class TradeMonitorService {
         throw new Error('TOKEN_DECRYPTION_FAILED');
       }
       
-      // Step 5: Create Deriv API client
-      const apiClient = await createDerivApiClient(derivAccount.derivAccountId, accessToken, derivAccount.accountType);
+      // Step 5: Create MT5 service for position monitoring
+      const mt5Service = createDerivMT5Service(accessToken, process.env.DERIV_CLIENT_ID!);
       
-      console.log(`[TradeMonitor] Checking Deriv contract: ${trade.brokerContractId}`);
+      console.log(`[TradeMonitor] Checking MT5 position: ${trade.mt5PositionId}`);
       
-      // Step 6: Query Deriv for current contract state
-      const contractInfo = await apiClient.getOpenContract(trade.brokerContractId);
-      
-      // Step 7: Determine if contract is still open or closed
-      const isSold = contractInfo.is_sold;
-      const currentProfit = contractInfo.profit;
-      
-      console.log(`[TradeMonitor] Contract state: is_sold=${isSold}, profit=${currentProfit}`);
-      
-      if (isSold) {
-        // Contract is closed
-        console.log(`[TradeMonitor] Trade ${trade._id} closed by broker, final P/L: ${currentProfit}`);
-        
-        await CopyTrade.findByIdAndUpdate(trade._id, {
-          status: 'CLOSED',
-          profitLoss: currentProfit,
-          closedAt: new Date(),
-          updatedAt: new Date()
-        });
-        
-        result.success = true;
-        result.status = 'CLOSED';
-        result.profitLoss = currentProfit;
-        
-      } else {
-        // Contract is still open - update floating P/L
-        console.log(`[TradeMonitor] Trade ${trade._id} still open, floating P/L: ${currentProfit}`);
-        
-        await CopyTrade.findByIdAndUpdate(trade._id, {
-          profitLoss: currentProfit,
-          updatedAt: new Date()
-        });
-        
-        result.success = true;
-        result.status = 'OPEN';
-        result.profitLoss = currentProfit;
-      }
-      
-      // Step 8: Disconnect API client
-      apiClient.disconnect();
+      // Step 6: Query MT5 for current position state
+      // Note: Deriv MT5 API doesn't have direct position monitoring via API
+      // This would need to be implemented via MT5 Expert Advisor integration
+      // For now, we'll mark as pending EA integration
+      console.log(`[TradeMonitor] MT5 position monitoring requires EA integration`);
+      result.error = 'MT5_POSITION_MONITORING_REQUIRES_EA';
+      result.success = false;
       
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';

@@ -270,13 +270,13 @@ export default function ConnectDerivPage() {
       toast.success(
         <div className="flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-          <span>Deriv account connected successfully!</span>
+          <span>Deriv MT5/CFD account connected successfully!</span>
         </div>
       );
       // Clean up URL
       window.history.replaceState({}, '', window.location.pathname);
     } else if (error) {
-      let errorMessage = 'Failed to connect Deriv account';
+      let errorMessage = 'Failed to connect Deriv MT5/CFD account';
       switch (error) {
         case 'missing_params':
           errorMessage = 'Missing required parameters';
@@ -291,16 +291,22 @@ export default function ConnectDerivPage() {
           errorMessage = 'Failed to exchange authorization code';
           break;
         case 'account_verification_failed':
-          errorMessage = 'Failed to verify Deriv account';
+          errorMessage = 'Failed to verify Deriv MT5/CFD account';
           break;
         case 'invalid_account_data':
           errorMessage = 'Invalid account data received';
           break;
         case 'no_active_account':
-          errorMessage = 'No active Deriv account found';
+          errorMessage = 'No active Deriv MT5/CFD account found';
           break;
         case 'account_already_connected':
-          errorMessage = 'This Deriv account is already connected to another user';
+          errorMessage = 'This Deriv MT5/CFD account is already connected to another user';
+          break;
+        case 'options_account_not_supported':
+          errorMessage = 'Options accounts are not supported. Please connect your Deriv CFD/MT5 account.';
+          break;
+        case 'no_mt5_accounts':
+          errorMessage = 'No MT5 accounts found. Please create an MT5 account in your Deriv dashboard first.';
           break;
         case 'server_error':
           errorMessage = 'Server error occurred';
@@ -360,14 +366,14 @@ export default function ConnectDerivPage() {
         return data;
       }).finally(() => setIsDisconnecting(false)),
       {
-        loading: "Disconnecting your Deriv account...",
+        loading: "Disconnecting your Deriv MT5/CFD account...",
         success: (
           <div className="flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-            <span>Your Deriv account has been disconnected</span>
+            <span>Your Deriv MT5/CFD account has been disconnected</span>
           </div>
         ),
-        error: "Failed to disconnect Deriv account",
+        error: "Failed to disconnect Deriv MT5/CFD account",
       }
     );
   };
@@ -585,14 +591,22 @@ export default function ConnectDerivPage() {
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 text-[#D4AF37] font-bold text-xs uppercase tracking-tighter">
                       <ChartSpline className="w-4 h-4" />
-                      <span>Deriv Integration</span>
+                      <span>Deriv MT5/CFD Integration</span>
                     </div>
                     <h2 className="text-2xl font-black text-foreground leading-tight tracking-tight">
-                      Connect Deriv Account
+                      Connect Deriv CFD / MT5 Account
                     </h2>
                     <p className="text-muted-foreground text-sm leading-relaxed font-medium">
-                      Easily link your Deriv account to the platform for seamless copy trading. Your account type (Demo or Live) will be detected automatically.
+                      Connect the Deriv MT5/CFD account that you want to use for XAUUSD trading. Your account type (Demo or Live) will be detected automatically.
                     </p>
+                    <div className="mt-3 rounded-lg bg-amber-500/10 border border-amber-500/20 p-3">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                        <p className="text-xs text-amber-700 dark:text-amber-400 font-medium">
+                          Options and Multipliers accounts are not supported. Only Deriv MT5/CFD accounts can be used for XAUUSD trading.
+                        </p>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Stats/Info Row */}
@@ -631,7 +645,7 @@ export default function ConnectDerivPage() {
                       </div>
                     ) : (
                       <div className="relative z-10 flex w-full items-center justify-between">
-                        <span className="whitespace-nowrap">Connect Deriv Account</span>
+                        <span className="whitespace-nowrap">Connect Deriv CFD / MT5 Account</span>
 
                         <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 transition-transform group-hover:rotate-45">
                           <ArrowUpRight className="h-5 w-5" />
@@ -663,7 +677,7 @@ export default function ConnectDerivPage() {
             <div className="grid gap-6 lg:grid-cols-3">
               {/* LEFT COLUMN */}
               <div className="lg:col-span-2 space-y-6">
-                {/* DERIV ACCOUNT OVERVIEW */}
+                {/* DERIV MT5/CFD ACCOUNT OVERVIEW */}
                 <Card className="relative overflow-hidden rounded-2xl border-border bg-card p-5 px-4 lg:p-5 text-foreground shadow-xl">
                   {/* top accent line */}
                   <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent opacity-70" />
@@ -676,7 +690,7 @@ export default function ConnectDerivPage() {
                       <div>
                         <div className="flex items-center gap-2">
                           <h3 className="text-base font-black uppercase tracking-wide text-foreground">
-                            DERIV CONFIGURATION
+                            DERIV MT5/CFD CONFIGURATION
                           </h3>
                         </div>
                         <p className="text-xs text-muted-foreground">
@@ -743,11 +757,11 @@ export default function ConnectDerivPage() {
                     <SectionLabel>Connection</SectionLabel>
                   <div className="relative rounded-xl mt-1 border border-border bg-muted/40 px-4">
                     <ToggleRow
-                      label="Deriv Connection"
+                      label="Deriv MT5/CFD Connection"
                       description={
                         isDisconnecting
                           ? "Disconnecting…"
-                          : "Turn off to unlink this Deriv account"
+                          : "Turn off to unlink this Deriv MT5/CFD account"
                       }
                       checked={derivConnected}
                       disabled={isDisconnecting}

@@ -1,156 +1,178 @@
-# Deriv Multipliers Implementation Progress
+# XAU PRIME — MT5/CFD Migration Status
 
-## Phase 1: Database Schema Changes ✅ COMPLETED
+> **Last updated:** September 2026
+> **Status:** MIGRATION COMPLETE (pending MT5 Expert Advisor installation)
 
-### Models Updated
-1. **Signal.ts** - Renamed fields for Multipliers architecture
-   - `symbol` → `asset`
-   - `orderType` → `sourceOrderType`
-   - `entry` → `sourceEntryPrice`
-   - `lotSize` → `stake`
-   - Added new indexes for asset and sourceOrderType
+---
 
-2. **TradeParameters.ts** - Added multiplier and risk fields
-   - `telegramLotSize` → `telegramStake`
-   - `configuredLotSize` → `configuredStake`
-   - `finalLotSize` → `finalStake`
-   - Added: `configuredMultiplier`, `configuredMaxRiskAmount`
-   - Added: `finalMultiplier`, `finalCurrency`, `finalTakeProfitIndex`
+## Summary
 
-3. **CopyTrade.ts** - Separated historical and new execution data
-   - Renamed legacy fields (asset, sourceOrderType, sourceEntryPrice, stake)
-   - Added Deriv execution details (derivUnderlyingSymbol, derivContractType, multiplier, etc.)
-   - Added historical separation (legacyDerivContractType for Options)
-   - Added SL/TP conversion tracking fields
-   - Added status: `REJECTED_LIMIT_NOT_SUPPORTED`
+The application has been fully migrated from **Deriv Options/Multipliers** to
+**Deriv CFD / MT5 (XAUUSD automated copy trading)**.
 
-### Migration Script Created
-- `scripts/migrate-to-multipliers.ts` - Migrates existing records
-- Supports both migration and rollback
-- Separates historical Options data from new Multipliers data
+Options and Multipliers trading is no longer used in any active code path.
 
-## Phase 2: Runtime Discovery Services ✅ COMPLETED
+---
 
-### Services Updated
-1. **deriv-symbol-mapper.service.ts** - Exact matching with trading availability
-   - Removed hardcoded patterns
-   - Exact matching for XAU/USD
-   - Fallback matching with same trading availability checks
-   - Validates exchange is open and not suspended
-   - New interface: `SymbolDiscoveryResult` with success/error tracking
+## What Changed
 
-2. **deriv-api-client.service.ts** - Added discovery and validation methods
-   - `getTick()` - Get current spot price for SL/TP calculation
-   - `validateMultiplierContracts()` - Validate MULTUP/MULTDOWN availability
-   - Extracts runtime multiplier range
-   - Extracts runtime min/max stake constraints
+### Removed / Isolated
 
-## Phase 3: AI Signal Processing ✅ COMPLETED
+| File | What it did | Where it is now |
+|---|---|---|
+| `services/deriv-adapter.service.ts` | MULTUP/MULTDOWN proposals + buy | `services/_deprecated_options/` (tombstone left) |
+| `services/deriv-api-client.service.ts` | Options OTP auth + proposal/buy | `services/_deprecated_options/` (tombstone left) |
+| `services/deriv-websocket-client.service.ts` | Options WebSocket | `services/_deprecated_options/` (tombstone left) |
+| `services/deriv-contract-mapper.service.ts` | BUY→MULTUP mapping | `services/_deprecated_options/` (tombstone left) |
+| `services/deriv-symbol-mapper.service.ts` | Options symbol mapper | `services/_deprecated_options/` (tombstone left) |
+| `services/deriv-sltp-converter.service.ts` | Options SL/TP converter | `services/_deprecated_options/` (tombstone left) |
+| `app/api/deriv/refresh/route.ts` | Called `options/accounts` REST API | **Replaced** with MT5 `mt5_get_settings` WebSocket |
 
-### AI Services Updated
-1. **signal-parser.ts** - Updated field names
-   - `extractSymbol()` → `extractAsset()`
-   - `extractOrderType()` → `extractSourceOrderType()`
-   - `extractEntry()` → `extractSourceEntryPrice()`
-   - Added `extractStake()` - Extract lot size/volume/stake
+### Added
 
-2. **signal-schema.ts** - Updated schema for AI output
-   - Renamed fields (asset, sourceOrderType, sourceEntryPrice, stake)
-   - Added LIMIT rejection support in validation schema
-   - AI outputs trading intent only - NO Deriv-specific fields
+| File | Purpose |
+|---|---|
+| `models/MT5SignalQueue.ts` | MongoDB model for EA signal queue |
+| `app/api/deriv/mt5/signals/route.ts` | EA polling: GET pending signals, POST acknowledge |
+| `app/api/deriv/mt5/signals/[signalId]/result/route.ts` | EA execution result callback |
+| `app/api/admin/migrate-options-accounts/route.ts` | One-time migration: mark old Options records invalid |
 
-3. **signal-validator.ts** - Added LIMIT rejection and directional validation
-   - HARD RULE: LIMIT signals rejected (LIMIT_NOT_SUPPORTED)
-   - ENABLED directional SL/TP validation
-   - BUY: SL < reference, TP > reference
-   - SELL: SL > reference, TP < reference
-   - Prevents logically inverted signals
+### Already Correct (no changes needed)
 
-## Phase 4: SL/TP Conversion Service ✅ COMPLETED
+| File | Status |
+|---|---|
+| `models/DerivAccount.ts` | Has `accountPlatform: 'mt5'`, `product: 'cfd'`, `mt5Login`, `mt5Server` |
+| `models/CopyTrade.ts` | Has MT5 fields; Options fields marked deprecated |
+| `app/api/deriv/callback/route.ts` | Uses MT5 service; rejects Options accounts |
+| `app/api/deriv/status/route.ts` | Verifies `accountPlatform === 'mt5'`; marks old accounts invalid |
+| `app/api/deriv/connect/route.ts` | PKCE OAuth; no Options logic |
+| `app/UserDashboard/connect-deriv/page.tsx` | Says "Connect Deriv CFD / MT5 Account"; warns Options not supported |
+| `services/deriv-mt5.service.ts` | MT5 account management via official WebSocket API |
+| `services/mt5-adapter.service.ts` | MT5/CFD execution adapter (now with real queue) |
+| `services/mt5-execution.service.ts` | MT5 signal conversion + real queue operations |
+| `services/phase8-execution-engine.service.ts` | Wired to MT5Adapter; no Options logic |
 
-### New Service Created
-1. **deriv-sltp-converter.service.ts** - CANDIDATE SL/TP conversion
-   - Implements candidate formula: `stake * multiplier * percentage_move`
-   - Marked as CANDIDATE - requires demo validation
-   - Includes validation against stake constraints
-   - Supports recalculation with actual entry spot
-   - Extensive logging for demo validation
+---
 
-## Phase 5: Contract Mapping Service ✅ COMPLETED
+## Architecture
 
-### New Service Created
-1. **deriv-contract-mapper.service.ts** - Backend contract type mapping
-   - Enforced mapping: BUY → MULTUP, SELL → MULTDOWN
-   - AI validation: Prevents AI from generating Deriv-specific fields
-   - Backend-only determination of contract types
+```
+Telegram
+  → Signal Collector (cron)
+  → AI Parser (ai/ folder)
+  → Signal Validation
+  → Trade Parameter Resolver (Phase 5)
+  → User Eligibility (Phase 6)
+  → Phase 8 Execution Engine
+  → MT5Adapter.executeTrade()
+      → Verify MT5/CFD account
+      → Create CopyTrade (PENDING)
+      → Convert to MT5TradeSignal
+      → Persist to MT5SignalQueue (MongoDB)
+      → Update CopyTrade (SENT_TO_MT5)
 
-## Remaining Implementation Tasks
+MT5 Expert Advisor (external — NOT YET INSTALLED)
+  → Poll GET /api/deriv/mt5/signals?mt5Login=<login>&status=pending
+  → Execute XAUUSD CFD position in user's MT5 account
+  → Report back POST /api/deriv/mt5/signals/[signalId]/result
+  → Backend updates CopyTrade to OPEN with positionId and fill price
+```
 
-### Phase 6: Deriv Adapter Rewrite (PENDING)
-- Rewrite `deriv-adapter.service.ts` for Multipliers architecture
-- Implement new execution flow:
-  - Discover symbol (active_symbols)
-  - Validate contracts (contracts_for)
-  - Select multiplier (runtime range)
-  - Get reference spot (ticks)
-  - Calculate candidate SL/TP
-  - Request proposal (WITHOUT limit_order)
-  - Execute buy
-  - Get actual entry (proposal_open_contract)
-  - Apply SL/TP (contract_update)
-- Add TAKE PROFIT selection logic (first TP from array)
-- Preserve original signal intent + execution details
+---
 
-### Phase 7: Phase 8 Execution Engine Update (PENDING)
-- Update `phase8-execution-engine.service.ts`
-- Handle LIMIT rejection flow
-- Integrate with new services
-- Update error handling for new error codes
+## EA Integration — PENDING COMPONENT
 
-### Phase 8: Trade Parameter Resolver Update (PENDING)
-- Update `trade-parameter-resolver.service.ts`
-- Add multiplier validation
-- Add stake validation against runtime constraints
-- Add risk policy validation (configuredMaxRiskAmount)
+**This is the only remaining missing component.**
 
-### Phase 9: Demo Validation Tests (PENDING)
-- Create demo validation test suite
-- Test symbol discovery
-- Test multiplier range validation
-- Test SL/TP conversion accuracy
-- Test entry spot verification
-- Document all validation results
+The backend is fully prepared. The MT5 Expert Advisor is not yet installed.
 
-### Phase 10: Production Readiness (PENDING)
-- Review all demo validation results
-- Confirm SL/TP conversion accuracy
-- Verify entry spot behavior
-- Enable production execution only after validation
+### What the EA must do
 
-## Critical Implementation Rules Enforced
+1. Authenticate with `x-ea-api-key: <MT5_EA_API_KEY>` header.
+2. Call `GET /api/deriv/mt5/signals?mt5Login=<login>&status=pending` on a schedule (e.g. every 5 seconds).
+3. For each signal, check `expiresAt` — skip expired signals.
+4. Open a `XAUUSD` CFD market order in the user's MT5 demo account with the signal's `side`, `volume`, `stopLoss`, `takeProfit`.
+5. Report the result back to `POST /api/deriv/mt5/signals/[signalId]/result`.
 
-✅ NO hardcoded XAUUSD symbol - runtime discovery only
-✅ NO hardcoded multiplier ranges - extracted from contracts_for
-✅ NO hardcoded currency - from account
-✅ NO hardcoded contract types - validated via contracts_for
-✅ SL/TP conversion marked as CANDIDATE - requires demo validation
-✅ NO proposal-level limit_order - use contract_update
-✅ LIMIT signals rejected - not silently converted
-✅ Directional SL/TP validation enabled
-✅ Historical Options data separated from new Multipliers data
-✅ AI outputs trading intent only - NO Deriv-specific fields
+### Signal payload the EA receives
 
-## Next Steps
+```json
+{
+  "signalId": "...",
+  "symbol": "XAUUSD",
+  "side": "BUY",
+  "volume": 0.01,
+  "entryPrice": null,
+  "stopLoss": 1800.00,
+  "takeProfit": 1900.00,
+  "accountType": "demo",
+  "mt5Server": "Deriv-Demo",
+  "expiresAt": "2026-09-15T20:30:00.000Z"
+}
+```
 
-1. **Immediate**: Test database migration on development environment
-2. **Next**: Rewrite deriv-adapter.service.ts with new execution flow
-3. **Then**: Update phase8-execution-engine.service.ts
-4. **Finally**: Create and run demo validation tests
+### Result payload the EA sends back
 
-## Notes
+```json
+{
+  "success": true,
+  "positionId": "123456789",
+  "executionPrice": 1850.25
+}
+```
 
-- All schema changes preserve backward compatibility with legacy fields
-- Migration script supports rollback for safety
-- SL/TP conversion formula is CANDIDATE and must be validated before production
-- LIMIT rejection is a hard safety rule - no silent conversion
-- Demo account safety checks preserved throughout
+or on failure:
+
+```json
+{
+  "success": false,
+  "error": "No quote available for XAUUSD"
+}
+```
+
+---
+
+## Environment Variables Required
+
+| Variable | Purpose |
+|---|---|
+| `MT5_EA_API_KEY` | Shared secret between backend and MT5 EA |
+| `ADMIN_API_KEY` | Admin route authentication |
+| `DERIV_CLIENT_ID` | Deriv OAuth App ID |
+| `DERIV_CLIENT_SECRET` | Deriv OAuth client secret |
+| `DERIV_REDIRECT_URI` | Must match Deriv app settings |
+
+---
+
+## One-Time Migration Step
+
+After deploying this version, run:
+
+```bash
+curl -X POST https://xauprime.vercel.app/api/admin/migrate-options-accounts \
+  -H "x-admin-api-key: <ADMIN_API_KEY>"
+```
+
+This marks all legacy Options account records as `connectionStatus: 'invalid'`.
+Users will see a prompt to reconnect their Deriv MT5/CFD account.
+
+---
+
+## Testing (Demo Account)
+
+1. Log in to your Deriv account at https://app.deriv.com
+2. Ensure you have an MT5 demo account: Trader's Hub → Deriv MT5 → Demo
+3. Connect at https://xauprime.vercel.app/UserDashboard/connect-deriv
+4. The backend will call `mt5_login_list` via WebSocket, find your MT5 demo account,
+   and store it with `accountPlatform: 'mt5'`, `product: 'cfd'`
+5. The balance shown is the actual MT5 demo balance (not the Options $9,995 balance)
+
+---
+
+## What Will NOT Work Until the EA Is Installed
+
+- Actual XAUUSD CFD position opening
+- CopyTrade transitioning from `SENT_TO_MT5` → `OPEN`
+- Trade profit/loss reporting
+
+Signals will be stored as `SENT_TO_MT5` in the database, waiting for the EA to execute them.

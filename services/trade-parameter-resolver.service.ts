@@ -1,12 +1,14 @@
 /**
  * Trade Parameter Resolver Service (Phase 5)
  * Resolves final execution parameters for copy trading based on:
- * - User's current Deriv account balance (fetched live from Deriv API)
+ * - User's current Deriv MT5/CFD account balance (fetched from MT5 API)
  * - Admin-configured balance-based rules (lot size, stop loss, position limits)
  * - Deterministic take profit selection from Telegram signal
  * 
  * This service does NOT execute trades - it prepares and validates parameters
  * for the execution layer.
+ * 
+ * UPDATED: Now uses MT5 API for balance fetching instead of Options API
  */
 
 import DerivAccount from '@/models/DerivAccount';
@@ -15,7 +17,7 @@ import StopLossManagement from '@/models/StopLossManagement';
 import PositionLimit from '@/models/PositionLimit';
 import { decrypt } from '@/lib/encryption';
 import { ISignal } from '@/models/Signal';
-import { createDerivApiClient, DerivApiClient } from './deriv-api-client.service';
+import { createDerivMT5Service } from './deriv-mt5.service';
 
 export interface ResolvedTradeParameters {
   signalId: string;
@@ -62,13 +64,11 @@ export interface BalanceFetchResult {
  * Main service for resolving trade parameters
  */
 export class TradeParameterResolver {
-  
+   
   /**
    * Fetch current balance from Deriv API using WebSocket authentication
    */
   private async fetchCurrentDerivBalance(derivAccount: any): Promise<BalanceFetchResult> {
-    let apiClient: DerivApiClient | null = null;
-    
     try {
       console.log(`[TradeParameterResolver] Fetching current balance for account ${derivAccount.derivAccountId}`);
       
@@ -95,20 +95,17 @@ export class TradeParameterResolver {
       }
       
       // Create Deriv API client using WebSocket
-      console.log(`[TradeParameterResolver] Creating WebSocket client for ${derivAccount.accountType} account`);
-      apiClient = await createDerivApiClient(derivAccount.derivAccountId, accessToken, derivAccount.accountType);
+      console.log(`[TradeParameterResolver] Creating MT5 service for ${derivAccount.accountType} account`);
+      const mt5Service = createDerivMT5Service(accessToken, process.env.DERIV_CLIENT_ID!);
       
-      // Fetch account information to get current balance
-      console.log(`[TradeParameterResolver] Fetching account info from Deriv API`);
-      const accountInfo = await apiClient.getAccountInfo();
-      const currentBalance = accountInfo.balance;
+      // Fetch account information to get current balance from MT5
+      console.log(`[TradeParameterResolver] Fetching account info from MT5 API`);
+      const mt5AccountSettings = await mt5Service.getMT5AccountSettings(derivAccount.mt5Login!);
+      const currentBalance = mt5AccountSettings.balance;
       
-      console.log(`[TradeParameterResolver] Account info retrieved: balance=${currentBalance}, currency=${accountInfo.currency}`);
+      console.log(`[TradeParameterResolver] MT5 account info retrieved: balance=${currentBalance}, currency=${mt5AccountSettings.currency}`);
       
-      // Disconnect the API client
-      apiClient.disconnect();
-      
-      console.log(`[TradeParameterResolver] Current balance fetched successfully: ${currentBalance}`);
+      console.log(`[TradeParameterResolver] Current MT5 balance fetched successfully: ${currentBalance}`);
       
       return {
         success: true,
@@ -116,21 +113,12 @@ export class TradeParameterResolver {
       };
       
     } catch (error) {
-      console.error(`[TradeParameterResolver] Balance fetch error:`, error);
+      console.error(`[TradeParameterResolver] MT5 balance fetch error:`, error);
       console.error(`[TradeParameterResolver] Error details:`, {
         message: error instanceof Error ? error.message : 'Unknown error',
         name: error instanceof Error ? error.name : 'Unknown',
         stack: error instanceof Error ? error.stack : undefined
       });
-      
-      // Make sure to disconnect the client on error
-      if (apiClient) {
-        try {
-          apiClient.disconnect();
-        } catch (disconnectError) {
-          console.error(`[TradeParameterResolver] Error disconnecting API client:`, disconnectError);
-        }
-      }
       
       return {
         success: false,

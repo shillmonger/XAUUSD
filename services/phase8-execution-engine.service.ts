@@ -4,21 +4,23 @@
  * 
  * This service:
  * - Retrieves eligible demo accounts from Phase 6
- * - Executes trades independently for each user using their own Deriv account
+ * - Executes trades independently for each user using their own Deriv MT5/CFD account
  * - Uses Phase 5 final trade parameters (SL, TP, lot size)
  * - Respects position limits from Phase 5
  * - Enforces demo-only execution (real accounts are blocked)
  * - Prevents duplicate execution
- * - Orchestrates the complete pipeline: Phase 6 → Phase 7 → Deriv → CopyTrade
+ * - Orchestrates the complete pipeline: Phase 6 → Phase 7 → MT5 → CopyTrade
  * - Handles execution failures gracefully
  * - Does NOT implement subscription logic (demo only for now)
+ * 
+ * UPDATED: Now uses MT5/CFD architecture instead of Options/Multipliers
  */
 
 import mongoose from 'mongoose';
 import Signal from '@/models/Signal';
 import TradeParameters from '@/models/TradeParameters';
 import UserEligibility from '@/models/UserEligibility';
-import { derivAdapter, InternalTradeRequest, ExecutionResult, DerivAdapter } from './deriv-adapter.service';
+import { mt5Adapter, InternalTradeRequest, ExecutionResult, MT5Adapter } from './mt5-adapter.service';
 import { ISignal } from '@/models/Signal';
 
 export interface ExecutionSummary {
@@ -32,7 +34,8 @@ export interface ExecutionSummary {
     derivAccountId: string;
     success: boolean;
     error?: string;
-    brokerContractId?: string;
+    mt5PositionId?: string;
+    mt5ExecutionId?: string;
   }>;
   processedAt: Date;
 }
@@ -136,15 +139,15 @@ export class Phase8ExecutionEngine {
           }
 
           // Step 3d: Build internal trade request
-          const tradeRequest = DerivAdapter.buildTradeRequest(
+          const tradeRequest = MT5Adapter.buildTradeRequest(
             signal,
             tradeParameters,
             eligibility
           );
 
-          // Step 3e: Execute trade via Phase 7 Deriv Adapter
-          console.log(`PHASE8 | Executing trade via Deriv Adapter | userId=${userId} | derivAccountId=${derivAccountId}`);
-          const executionResult = await derivAdapter.executeTrade(tradeRequest);
+          // Step 3e: Execute trade via Phase 7 MT5 Adapter
+          console.log(`PHASE8 | Executing trade via MT5 Adapter | userId=${userId} | derivAccountId=${derivAccountId}`);
+          const executionResult = await mt5Adapter.executeTrade(tradeRequest);
 
           // Step 3f: Record execution result
           summary.executionResults.push({
@@ -152,12 +155,13 @@ export class Phase8ExecutionEngine {
             derivAccountId,
             success: executionResult.success,
             error: executionResult.error,
-            brokerContractId: executionResult.brokerContractId
+            mt5PositionId: executionResult.mt5PositionId,
+            mt5ExecutionId: executionResult.mt5ExecutionId
           });
 
           if (executionResult.success) {
             summary.successfulExecutions++;
-            console.log(`PHASE8 | Trade executed successfully | userId=${userId} | derivAccountId=${derivAccountId} | contractId=${executionResult.brokerContractId}`);
+            console.log(`PHASE8 | Trade executed successfully | userId=${userId} | derivAccountId=${derivAccountId} | mt5ExecutionId=${executionResult.mt5ExecutionId}`);
           } else {
             summary.failedExecutions++;
             console.log(`PHASE8 | Trade execution failed | userId=${userId} | derivAccountId=${derivAccountId} | error=${executionResult.error}`);

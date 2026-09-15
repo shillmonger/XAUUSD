@@ -6,7 +6,9 @@ export interface IDerivAccount extends Document {
   broker: string;
   derivAccountId: string;
   accountType: 'demo' | 'real';
-  connectionStatus: 'connected' | 'disconnected' | 'pending';
+  accountPlatform: 'mt5' | 'options' | 'unknown';
+  product: 'cfd' | 'options' | 'multipliers' | 'unknown';
+  connectionStatus: 'connected' | 'disconnected' | 'pending' | 'invalid';
   accessTokenEncrypted: string;
   tokenExpiresAt: Date;
   connectedAt: Date;
@@ -17,6 +19,10 @@ export interface IDerivAccount extends Document {
   currency?: string;
   accountStatus?: string;
   group?: string;
+  // MT5/CFD specific fields
+  mt5Login?: string;
+  mt5Server?: string;
+  mt5AccountType?: 'demo' | 'real';
   // Bot execution state
   botStatus?: 'ACTIVE' | 'PAUSED' | 'OFF';
   createdAt: Date;
@@ -43,9 +49,19 @@ const DerivAccountSchema: Schema<IDerivAccount> = new Schema(
       enum: ['demo', 'real'],
       required: [true, 'Account type is required'],
     },
+    accountPlatform: {
+      type: String,
+      enum: ['mt5', 'unknown'],
+      default: 'unknown',
+    },
+    product: {
+      type: String,
+      enum: ['cfd', 'unknown'],
+      default: 'unknown',
+    },
     connectionStatus: {
       type: String,
-      enum: ['connected', 'disconnected', 'pending'],
+      enum: ['connected', 'disconnected', 'pending', 'invalid'],
       default: 'pending',
     },
     accessTokenEncrypted: {
@@ -78,6 +94,17 @@ const DerivAccountSchema: Schema<IDerivAccount> = new Schema(
     group: {
       type: String,
     },
+    // MT5/CFD specific fields
+    mt5Login: {
+      type: String,
+    },
+    mt5Server: {
+      type: String,
+    },
+    mt5AccountType: {
+      type: String,
+      enum: ['demo', 'real'],
+    },
     // Bot execution state
     botStatus: {
       type: String,
@@ -93,8 +120,11 @@ const DerivAccountSchema: Schema<IDerivAccount> = new Schema(
 // Index for user lookups
 DerivAccountSchema.index({ userId: 1 });
 
-// Compound unique index to ensure one account per user per type
-DerivAccountSchema.index({ userId: 1, accountType: 1 }, { unique: true });
+// Compound unique index to ensure one MT5 account per user per type
+DerivAccountSchema.index({ userId: 1, accountType: 1, accountPlatform: 1 }, { unique: true, partialFilterExpression: { accountPlatform: 'mt5' } });
+
+// Index for legacy Options accounts (marked as invalid)
+DerivAccountSchema.index({ userId: 1, accountType: 1, accountPlatform: 1 }, { partialFilterExpression: { accountPlatform: 'options' } });
 
 const DerivAccount: Model<IDerivAccount> = mongoose.models.DerivAccount || mongoose.model<IDerivAccount>('DerivAccount', DerivAccountSchema);
 
