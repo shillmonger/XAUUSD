@@ -154,6 +154,124 @@ export class DerivAdapter {
   }
 
   /**
+   * Execute trade using MT5 route
+   * Based on Deriv support: use XAUUSD directly, bypass Multipliers availability check
+   * Uses existing infrastructure but with XAUUSD symbol for commodity trading
+   */
+  private async executeMT5Trade(
+    request: InternalTradeRequest,
+    derivAccount: any,
+    accessToken: string,
+    copyTrade: any,
+    result: ExecutionResult
+  ): Promise<ExecutionResult> {
+    console.log(`[DerivAdapter] Executing MT5-style trade for ${request.asset}`);
+    
+    try {
+      // For MT5 commodities, use XAUUSD directly as the symbol (per Deriv support)
+      const mt5Symbol = 'XAUUSD';
+      console.log(`[DerivAdapter] Using MT5 symbol: ${mt5Symbol}`);
+      
+      // Translate direction (same as Multipliers)
+      const contractType = this.translateDirection(request.direction);
+      const stake = this.translateStake(request.stake);
+      
+      console.log(`[DerivAdapter] MT5 trade parameters:`, {
+        symbol: mt5Symbol,
+        direction: request.direction,
+        contractType: contractType,
+        stake: stake,
+        stopLoss: request.stopLoss,
+        takeProfit: request.takeProfit
+      });
+      
+      // Try to execute using existing infrastructure with XAUUSD symbol
+      // This bypasses the Multipliers availability check but uses the same proposal mechanism
+      const proposalRequest = {
+        proposal: 1,
+        underlying_symbol: mt5Symbol,
+        contract_type: contractType,
+        amount: stake,
+        basis: 'stake' as const,
+        currency: 'USD',
+        duration_unit: 's',
+        multiplier: 100, // Standard multiplier for commodities
+        subscribe: 1,
+        limit_order: {
+          stop_loss: request.stopLoss,
+          take_profit: request.takeProfit
+        }
+      };
+      
+      console.log(`[DerivAdapter] MT5 proposal request:`, proposalRequest);
+      
+      try {
+        const proposal = await this.apiClient!.getProposal(proposalRequest);
+        console.log(`[DerivAdapter] MT5 proposal successful`);
+        
+        // Buy the proposal
+        const buyRequest = {
+          buy: proposal.id,
+          price: proposal.ask_price
+        };
+        
+        const buyResponse = await this.apiClient!.buy(buyRequest);
+        console.log(`[DerivAdapter] MT5 buy successful:`, buyResponse);
+        
+        // Update copy trade with success
+        const contractId = (buyResponse as any).contract_id || (buyResponse as any).buy?.contract_id;
+        const transactionId = (buyResponse as any).transaction_id || (buyResponse as any).buy?.transaction_id;
+        
+        await copyTrade.updateOne({
+          status: 'OPEN',
+          brokerContractId: contractId,
+          brokerTransactionId: transactionId,
+          executionPrice: proposal.spot,
+          executedAt: new Date()
+        });
+        
+        result.success = true;
+        result.status = 'OPEN';
+        result.brokerContractId = contractId;
+        result.brokerTransactionId = transactionId;
+        result.executionPrice = proposal.spot;
+        
+        console.log(`[DerivAdapter] MT5 trade executed successfully`);
+        return result;
+        
+      } catch (proposalError) {
+        const errorMessage = proposalError instanceof Error ? proposalError.message : 'Unknown error';
+        console.error(`[DerivAdapter] MT5 proposal failed:`, errorMessage);
+        
+        await copyTrade.updateOne({
+          status: 'FAILED',
+          failureReason: `MT5 proposal failed: ${errorMessage}`
+        });
+        
+        result.error = errorMessage;
+        result.errorCode = 'MT5_PROPOSAL_FAILED';
+        result.status = 'FAILED';
+        
+        return result;
+      }
+      
+    } catch (error) {
+      console.error(`[DerivAdapter] MT5 trade execution failed:`, error);
+      
+      await copyTrade.updateOne({
+        status: 'FAILED',
+        failureReason: `MT5 execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      });
+      
+      result.error = error instanceof Error ? error.message : 'MT5_EXECUTION_FAILED';
+      result.errorCode = 'MT5_EXECUTION_FAILED';
+      result.status = 'FAILED';
+      
+      return result;
+    }
+  }
+
+  /**
    * Translate internal stake to Deriv stake/amount
    * Deriv uses "stake" or "payout" as the basis for contract size
    * This is a simplified translation - may need adjustment based on the product
@@ -332,18 +450,9 @@ export class DerivAdapter {
       console.log(`[DerivAdapter] Trading route decision:`, routeDecision);
 
       if (!routeDecision.useMultipliers) {
-        // MT5 route - not yet implemented
-        await copyTrade.updateOne({
-          status: 'FAILED',
-          failureReason: `MT5 route required: ${routeDecision.reason} (not yet implemented)`
-        });
-        
-        result.error = 'MT5_ROUTE_REQUIRED_NOT_IMPLEMENTED';
-        result.errorCode = 'MT5_ROUTE_REQUIRED_NOT_IMPLEMENTED';
-        result.status = 'FAILED';
-        
-        console.log(`[DerivAdapter] MT5 route required but not implemented`);
-        return result;
+        // MT5 route - implement MT5 trading for XAUUSD
+        console.log(`[DerivAdapter] Using MT5 route for ${request.asset}`);
+        return await this.executeMT5Trade(request, derivAccount, accessToken, copyTrade, result);
       }
 
       // Step 6: Translate internal trade to Deriv format
