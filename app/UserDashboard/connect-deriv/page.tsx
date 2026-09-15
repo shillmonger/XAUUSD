@@ -275,6 +275,14 @@ export default function ConnectDerivPage() {
       );
       // Clean up URL
       window.history.replaceState({}, '', window.location.pathname);
+    } else if (success === 'oauth_authorized') {
+      toast.success(
+        <div className="flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+          <span>Deriv OAuth authorized. Connect the MT5 EA bridge to verify your CFD account before trading.</span>
+        </div>
+      );
+      window.history.replaceState({}, '', window.location.pathname);
     } else if (error) {
       let errorMessage = 'Failed to connect Deriv MT5/CFD account';
       switch (error) {
@@ -304,9 +312,6 @@ export default function ConnectDerivPage() {
           break;
         case 'options_account_not_supported':
           errorMessage = 'Options accounts are not supported. Please connect your Deriv CFD/MT5 account.';
-          break;
-        case 'mt5_bridge_required':
-          errorMessage = 'OAuth completed. Connect the MT5 EA bridge to verify your CFD account before trading.';
           break;
         case 'server_error':
           errorMessage = 'Server error occurred';

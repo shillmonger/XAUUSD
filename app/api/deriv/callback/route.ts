@@ -56,13 +56,13 @@ export async function GET(request: NextRequest) {
       body: tokenParams,
     });
 
-    // Log response details before parsing
+    // Log exchange metadata only. Never write OAuth credentials to logs.
     const responseText = await tokenResponse.text();
-    console.error('Token exchange response:', {
+    console.info('Token exchange completed:', {
       status: tokenResponse.status,
       statusText: tokenResponse.statusText,
       contentType: tokenResponse.headers.get('content-type'),
-      body: responseText.substring(0, 500),
+      hasAccessToken: responseText.includes('access_token'),
     });
 
     if (!tokenResponse.ok) {
@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
     await OAuthState.deleteOne({ state });
 
     return NextResponse.redirect(
-      new URL('/UserDashboard/connect-deriv?error=mt5_bridge_required', process.env.NEXT_PUBLIC_APP_URL!)
+      new URL('/UserDashboard/connect-deriv?success=oauth_authorized', process.env.NEXT_PUBLIC_APP_URL!)
     );
 
   } catch (error) {
