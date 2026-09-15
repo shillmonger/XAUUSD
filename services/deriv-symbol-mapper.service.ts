@@ -101,9 +101,10 @@ export class DerivSymbolMapper {
     }
 
     // STRATEGY 2: FALLBACK with same trading availability checks (contains XAU and USD)
+    // Prefer symbols that START with XAU (not just contain it)
     const fallbackMatch = activeSymbols.find(s => {
       const normalizedName = s.underlying_symbol?.replace(/[\s/]/g, '').toUpperCase();
-      return normalizedName.includes('XAU') &&
+      return normalizedName.startsWith('XAU') &&
              normalizedName.includes('USD') &&
              s.underlying_symbol_type === 'forex' &&
              s.exchange_is_open === 1 &&

@@ -129,7 +129,7 @@ export class DerivAdapter {
   private getFallbackSymbol(internalAsset: string): string {
     console.log(`[DerivAdapter] Using fallback symbol mapping for: ${internalAsset}`);
     
-    // Common fallback mappings based on Deriv support information
+    // CRITICAL: Always use XAUUSD for Gold - never use random matches like frxAUDUSD
     const fallbackMap: Record<string, string> = {
       'XAUUSD': 'XAUUSD', // Standard Gold/USD symbol (from Deriv support)
       'GOLD': 'XAUUSD',
@@ -384,6 +384,41 @@ export class DerivAdapter {
         } catch (proposalError) {
           const errorMessage = proposalError instanceof Error ? proposalError.message : 'Unknown error';
           
+          // If error is about take_profit limit (LimitOrderAmountTooHigh), remove take_profit
+          if (errorMessage.includes('LimitOrderAmountTooHigh') && attempt < maxRetries) {
+            const match = errorMessage.match(/lower than (\d+\.?\d*)/);
+            if (match) {
+              const tpLimit = parseFloat(match[1]);
+              console.warn(`[DerivAdapter] Take profit ${request.takeProfit} exceeds limit ${tpLimit}, removing take_profit and retrying`);
+              
+              // Retry without take_profit (keep stop_loss)
+              const proposalRequestWithoutTP = {
+                proposal: 1,
+                underlying_symbol: derivSymbol,
+                contract_type: contractType,
+                amount: currentStake,
+                basis: 'stake' as const,
+                currency: 'USD',
+                duration_unit: 's',
+                multiplier: 100,
+                subscribe: 1,
+                limit_order: {
+                  stop_loss: request.stopLoss
+                  // take_profit removed
+                }
+              };
+              
+              try {
+                proposal = await this.apiClient!.getProposal(proposalRequestWithoutTP);
+                console.log(`[DerivAdapter] Proposal successful without take_profit`);
+                break;
+              } catch (tpError) {
+                console.warn(`[DerivAdapter] Still failed without take_profit: ${tpError instanceof Error ? tpError.message : 'Unknown error'}`);
+                // Continue to next attempt with different approach
+              }
+            }
+          }
+
           // If error is about stake limits and we have retries left, try adjusting stake
           if (errorMessage.includes('amount equal to or lower than') && attempt < maxRetries) {
             const match = errorMessage.match(/lower than (\d+\.?\d*)/);
