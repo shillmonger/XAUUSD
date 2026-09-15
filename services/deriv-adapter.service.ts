@@ -155,8 +155,8 @@ export class DerivAdapter {
 
   /**
    * Execute trade using MT5 route
-   * Based on Deriv support: use XAUUSD directly, bypass Multipliers availability check
-   * Uses existing infrastructure but with XAUUSD symbol for commodity trading
+   * Based on Deriv support: use asset symbol directly, bypass Multipliers availability check
+   * Uses existing infrastructure but with correct symbol mapping for commodity/forex trading
    */
   private async executeMT5Trade(
     request: InternalTradeRequest,
@@ -168,8 +168,8 @@ export class DerivAdapter {
     console.log(`[DerivAdapter] Executing MT5-style trade for ${request.asset}`);
     
     try {
-      // For MT5 commodities, use XAUUSD directly as the symbol (per Deriv support)
-      const mt5Symbol = 'XAUUSD';
+      // Get the correct symbol for this asset (use discovery or fallback)
+      const mt5Symbol = await this.getDerivSymbol(request.asset, request.derivAccountId, accessToken, derivAccount.accountType);
       console.log(`[DerivAdapter] Using MT5 symbol: ${mt5Symbol}`);
       
       // Translate direction (same as Multipliers)
@@ -185,7 +185,7 @@ export class DerivAdapter {
         takeProfit: request.takeProfit
       });
       
-      // Try to execute using existing infrastructure with XAUUSD symbol
+      // Try to execute using existing infrastructure with discovered symbol
       // This bypasses the Multipliers availability check but uses the same proposal mechanism
       const proposalRequest = {
         proposal: 1,
@@ -195,7 +195,7 @@ export class DerivAdapter {
         basis: 'stake' as const,
         currency: 'USD',
         duration_unit: 's',
-        multiplier: 100, // Standard multiplier for commodities
+        multiplier: 100, // Standard multiplier
         subscribe: 1,
         limit_order: {
           stop_loss: request.stopLoss,
@@ -285,17 +285,20 @@ export class DerivAdapter {
   /**
    * Fallback symbol mapping if discovery fails
    * This provides a hardcoded fallback for common symbols as a safety net
-   * Based on Deriv support: Standard Gold/USD symbol: XAUUSD, Gold/USD Micro symbol: XAUUSDmicro
+   * Based on Deriv support and common Deriv symbol formats
    */
   private getFallbackSymbol(internalAsset: string): string {
     console.log(`[DerivAdapter] Using fallback symbol mapping for: ${internalAsset}`);
     
-    // CRITICAL: Always use XAUUSD for Gold - never use random matches like frxAUDUSD
+    // Fallback mapping for common assets
     const fallbackMap: Record<string, string> = {
-      'XAUUSD': 'XAUUSD', // Standard Gold/USD symbol (from Deriv support)
+      'XAUUSD': 'XAUUSD', // Standard Gold/USD symbol
       'GOLD': 'XAUUSD',
       'XAU': 'XAUUSD',
-      'XAUUSDmicro': 'XAUUSDmicro', // Gold/USD Micro symbol (from Deriv support)
+      'XAUUSDmicro': 'XAUUSDmicro', // Gold/USD Micro symbol
+      'EURUSD': 'frxEURUSD', // Standard EUR/USD for Deriv
+      'GBPUSD': 'frxGBPUSD', // Standard GBP/USD for Deriv
+      'USDJPY': 'frxUSDJPY', // Standard USD/JPY for Deriv
     };
     
     const fallbackSymbol = fallbackMap[internalAsset.toUpperCase()];

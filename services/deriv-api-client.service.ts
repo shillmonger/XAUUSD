@@ -376,8 +376,16 @@ export class DerivApiClient {
     console.log(`[DerivApiClient] Checking asset availability for Multipliers: ${asset}`);
     
     try {
-      // Try multiple possible symbol names for Gold
-      const possibleSymbols = [asset, 'GOLD', 'XAUUSD'];
+      // Map common asset names to Deriv symbol formats
+      const symbolMapping: Record<string, string[]> = {
+        'XAUUSD': ['XAUUSD', 'GOLD', 'XAUUSDmicro'],
+        'GOLD': ['XAUUSD', 'GOLD', 'XAUUSDmicro'],
+        'EURUSD': ['frxEURUSD', 'EURUSD'],
+        'GBPUSD': ['frxGBPUSD', 'GBPUSD'],
+        'USDJPY': ['frxUSDJPY', 'USDJPY'],
+      };
+      
+      const possibleSymbols = symbolMapping[asset.toUpperCase()] || [asset];
       let availableSymbol: string | null = null;
       let contractTypes: string[] = [];
       let multipliers: number[] = [];
@@ -419,7 +427,7 @@ export class DerivApiClient {
       return {
         asset,
         availableForMultipliers: !!availableSymbol,
-        availableForMT5: true, // Assume MT5 availability for Gold (per Deriv support)
+        availableForMT5: true, // Assume MT5 availability (per Deriv support)
         multipliersContractTypes: contractTypes,
         multipliersMultipliers: multipliers
       };

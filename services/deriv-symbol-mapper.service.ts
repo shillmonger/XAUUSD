@@ -70,7 +70,7 @@ export class DerivSymbolMapper {
     // Try multiple matching strategies with increasingly relaxed constraints
 
     // STRATEGY 1: EXACT MATCHING with strict trading availability checks
-    // Based on Deriv support, look for exact symbol names like "XAUUSD" or "XAUUSDmicro"
+    // Based on Deriv support, look for exact symbol names like "XAUUSD", "XAUUSDmicro", "frxEURUSD"
     const exactMatch = activeSymbols.find(s => {
       const normalizedName = s.underlying_symbol?.replace(/[\s/]/g, '').toUpperCase();
       const assetName = internalAsset.replace(/[\s/]/g, '').toUpperCase();
