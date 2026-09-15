@@ -45,6 +45,7 @@ export function normalizeDirection(direction: string | null): 'BUY' | 'SELL' | n
 
 /**
  * Normalize order type to MARKET, LIMIT, or STOP
+ * NOTE: LIMIT orders are converted to MARKET since Deriv Multipliers don't support LIMIT orders
  */
 export function normalizeOrderType(orderType: string | null): 'MARKET' | 'LIMIT' | 'STOP' | null {
   if (!orderType) {
@@ -58,7 +59,9 @@ export function normalizeOrderType(orderType: string | null): 'MARKET' | 'LIMIT'
   }
   
   if (['LIMIT'].includes(upperOrderType)) {
-    return 'LIMIT';
+    // Convert LIMIT to MARKET since Deriv Multipliers don't support LIMIT orders
+    console.log(`[Signal Normalizer] Converting LIMIT order to MARKET for Deriv Multipliers compatibility`);
+    return 'MARKET';
   }
   
   if (['STOP'].includes(upperOrderType)) {

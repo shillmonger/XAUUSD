@@ -48,21 +48,7 @@ export function validateSignal(extractionResult: SignalExtractionResult): Signal
     };
   }
 
-  // Rule 5: HARD RULE - LIMIT signals are NOT supported by Deriv Multipliers
-  if (extractionResult.sourceOrderType === 'LIMIT') {
-    console.log(`[Signal Validator] LIMIT signal rejected - Deriv Multipliers do not support LIMIT orders`);
-    return {
-      isValid: false,
-      reason: 'LIMIT_NOT_SUPPORTED',
-      isLimitRejected: true,
-      rejectionDetails: {
-        reason: 'Deriv Multipliers do not support LIMIT orders. Original signal requested LIMIT entry at ' + extractionResult.sourceEntryPrice + ' which cannot be faithfully executed.',
-        originalSignal: extractionResult
-      }
-    };
-  }
-
-  // Rule 6: STOP orders require entry price (renamed fields)
+  // Rule 5: STOP orders require entry price (renamed fields)
   if (extractionResult.sourceOrderType === 'STOP') {
     if (extractionResult.sourceEntryPrice === undefined) {
       console.log(`[Signal Validator] STOP order missing entry price`);
@@ -73,7 +59,7 @@ export function validateSignal(extractionResult: SignalExtractionResult): Signal
     }
   }
 
-  // Rule 7: Stop loss must exist
+  // Rule 6: Stop loss must exist
   if (!extractionResult.stopLoss) {
     console.log(`[Signal Validator] Missing stop loss`);
     return {
@@ -82,7 +68,7 @@ export function validateSignal(extractionResult: SignalExtractionResult): Signal
     };
   }
 
-  // Rule 8: At least one take profit must exist
+  // Rule 7: At least one take profit must exist
   if (!extractionResult.takeProfits || extractionResult.takeProfits.length === 0) {
     console.log(`[Signal Validator] Missing take profits`);
     return {
@@ -91,7 +77,7 @@ export function validateSignal(extractionResult: SignalExtractionResult): Signal
     };
   }
 
-  // Rule 9: DIRECTIONAL SL/TP VALIDATION (NEW - ENABLED)
+  // Rule 8: DIRECTIONAL SL/TP VALIDATION (NEW - ENABLED)
   // This prevents logically inverted signals
   if (extractionResult.direction === 'BUY') {
     // BUY: SL should be below reference, TP should be above reference
@@ -159,7 +145,7 @@ export function validateSignal(extractionResult: SignalExtractionResult): Signal
     }
   }
 
-  // Rule 10: Validate numeric values (renamed field)
+  // Rule 9: Validate numeric values (renamed field)
   if (extractionResult.sourceEntryPrice !== undefined && (isNaN(extractionResult.sourceEntryPrice) || !isFinite(extractionResult.sourceEntryPrice))) {
     console.log(`[Signal Validator] Invalid source entry price: ${extractionResult.sourceEntryPrice}`);
     return {
