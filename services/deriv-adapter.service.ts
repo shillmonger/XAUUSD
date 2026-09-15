@@ -267,6 +267,7 @@ export class DerivAdapter {
         sourceEntryPrice: request.sourceEntryPrice,
         stopLoss: request.stopLoss,
         takeProfit: request.takeProfit,
+        takeProfits: [request.takeProfit], // Store single TP in array for audit
         stake: request.stake,
         status: 'PENDING',
         processedAt: new Date()
@@ -287,8 +288,8 @@ export class DerivAdapter {
       console.log(`[DerivAdapter] Translated trade: ${request.asset} -> ${derivSymbol}, ${request.direction} -> ${contractType}`);
 
       // Step 7: Get proposal from Deriv
-      // Note: This is a simplified proposal request
-      // The actual parameters depend on the specific Deriv product/contract type
+      // For Deriv Multipliers, SL/TP must be set in the proposal request, not after purchase
+      // Note: This is a simplified proposal request - actual parameters depend on the specific Deriv product
       const proposalRequest = {
         underlying_symbol: derivSymbol,
         contract_type: contractType,
@@ -297,6 +298,9 @@ export class DerivAdapter {
         currency: 'USD',
         duration: 1, // Default duration: 1 day
         duration_unit: 'd', // Duration unit: 'd' for day
+        // SL/TP parameters for Multipliers (if supported)
+        stop_loss: request.stopLoss,
+        take_profit: request.takeProfit,
         // Additional parameters would be added here based on the specific product
       };
 
@@ -308,9 +312,11 @@ export class DerivAdapter {
         currency: 'USD',
         duration: 1,
         duration_unit: 'd',
+        stop_loss: request.stopLoss,
+        take_profit: request.takeProfit,
         internal_symbol: request.asset,
         internal_direction: request.direction,
-        internal_lotSize: request.stake
+        internal_stake: request.stake
       });
       let proposal;
       try {
@@ -352,42 +358,16 @@ export class DerivAdapter {
       }
       console.log(`[DerivAdapter] Contract bought: ${buyResponse.contract_id}`);
 
-      // Step 9: Apply SL/TP if supported by the product
-      // This depends on whether the Deriv product supports post-purchase SL/TP updates
-      try {
-        const updateRequest = {
-          contract_id: buyResponse.contract_id,
-          stop_loss: request.stopLoss,
-          take_profit: request.takeProfit
-        };
-
-        console.log(`[DerivAdapter] Applying SL/TP`);
-        try {
-          await this.apiClient!.updateContract(updateRequest);
-          console.log(`[DerivAdapter] SL/TP applied`);
-        } catch (updateError) {
-          // If update fails due to connection issue, try reconnecting with fresh OTP
-          console.warn('[DerivAdapter] SL/TP update failed, attempting reconnection with fresh OTP');
-          try {
-            await this.apiClient!.reconnect();
-            await this.apiClient!.updateContract(updateRequest);
-            console.log(`[DerivAdapter] SL/TP applied after reconnection`);
-          } catch (reconnectError) {
-            // SL/TP update might not be supported for all contract types
-            // Log but don't fail the trade if SL/TP update fails
-            console.warn(`[DerivAdapter] SL/TP update failed after reconnection (may not be supported):`, reconnectError);
-          }
-        }
-      } catch (error) {
-        // SL/TP update might not be supported for all contract types
-        // Log but don't fail the trade if SL/TP update fails
-        console.warn(`[DerivAdapter] SL/TP update failed (may not be supported):`, error);
-      }
+      // Step 9: Skip post-purchase SL/TP update
+      // Deriv Multipliers require SL/TP to be set in the proposal request, not after purchase
+      // The contract_update API is not supported for Multipliers contract types
+      console.log(`[DerivAdapter] Skipping post-purchase SL/TP update (not supported for Multipliers)`);
 
       // Step 10: Update copy trade record with success
       copyTrade.brokerContractId = buyResponse.contract_id;
       copyTrade.brokerTransactionId = buyResponse.transaction_id.toString();
-      copyTrade.executionPrice = buyResponse.buy_price;
+      copyTrade.buyPrice = buyResponse.buy_price; // Use buyPrice instead of executionPrice
+      copyTrade.actualEntrySpot = buyResponse.buy_price; // Set actual entry spot
       copyTrade.status = 'OPEN';
       copyTrade.openedAt = new Date();
       await copyTrade.save();
