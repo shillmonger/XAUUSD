@@ -30,16 +30,17 @@ export interface ResolvedTradeParameters {
   // Original Telegram signal values (for audit)
   telegramStopLoss: number;
   telegramTakeProfits: number[];
+  telegramStake?: number;  // was: telegramLotSize
   
   // Admin-configured values
-  configuredLotSize?: number;
+  configuredStake?: number;  // was: configuredLotSize
   configuredStopLoss?: number;
   configuredMaxPositions?: number;
   
   // Final execution parameters
   finalStopLoss?: number;
   finalTakeProfit?: number;
-  finalLotSize?: number;
+  finalStake?: number;  // was: finalLotSize
   
   // Position management
   currentOpenPositions: number;
@@ -324,6 +325,7 @@ export class TradeParameterResolver {
       balanceSynchronized: false,
       telegramStopLoss: signal.stopLoss,
       telegramTakeProfits: signal.takeProfits,
+      telegramStake: signal.stake,
       currentOpenPositions: 0,
       positionLimitReached: false,
       eligible: false
@@ -370,8 +372,8 @@ export class TradeParameterResolver {
         console.log(`[TradeParameterResolver] Rejected: ${result.rejectionReason}`);
         return result;
       }
-      result.configuredLotSize = lotSizeResult.lotSize;
-      result.finalLotSize = lotSizeResult.lotSize;
+      result.configuredStake = lotSizeResult.lotSize;
+      result.finalStake = lotSizeResult.lotSize;
       
       // Step 5: Match stop loss rule
       const stopLossResult = await this.matchStopLossRule(result.currentBalance);
@@ -383,11 +385,11 @@ export class TradeParameterResolver {
       result.configuredStopLoss = stopLossResult.stopLoss;
       
       // Step 6: Calculate final stop loss (admin config overrides Telegram SL)
-      if (signal.entry !== undefined) {
+      if (signal.sourceEntryPrice !== undefined) {
         result.finalStopLoss = this.calculateFinalStopLoss(
           result.configuredStopLoss!,
           signal.direction,
-          signal.entry
+          signal.sourceEntryPrice
         );
       } else {
         result.rejectionReason = 'MISSING_ENTRY_FOR_SL_CALCULATION';

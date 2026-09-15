@@ -29,13 +29,13 @@ export interface InternalTradeRequest {
   derivAccountId: string;
   
   // Trade parameters from Phase 5
-  symbol: string;
+  asset: string;  // was: symbol
   direction: 'BUY' | 'SELL';
-  orderType: 'MARKET' | 'LIMIT' | 'STOP';
-  entry?: number;
+  sourceOrderType: 'MARKET' | 'LIMIT' | 'STOP';  // was: orderType
+  sourceEntryPrice?: number;  // was: entry
   stopLoss: number;
   takeProfit: number;
-  lotSize: number;
+  stake: number;  // was: lotSize
 }
 
 export interface ExecutionResult {
@@ -77,13 +77,17 @@ export class DerivAdapter {
       return cached.derivSymbol;
     }
 
-    // Verify symbol mapping using the symbol mapper
-    const mapping = await derivSymbolMapper.verifySymbolMapping(internalSymbol, derivAccountId, accessToken, accountType);
+    // Discover symbol mapping using the symbol mapper
+    const discoveryResult = await derivSymbolMapper.discoverSymbolMapping(internalSymbol, derivAccountId, accessToken, accountType);
+    
+    if (!discoveryResult.success) {
+      throw new Error(`Failed to discover symbol mapping: ${discoveryResult.error}`);
+    }
     
     // Cache the mapping
-    this.symbolMappingCache.set(internalSymbol, mapping);
+    this.symbolMappingCache.set(internalSymbol, discoveryResult.details!);
     
-    return mapping.derivSymbol;
+    return discoveryResult.derivSymbol!;
   }
 
   /**
@@ -97,14 +101,14 @@ export class DerivAdapter {
   }
 
   /**
-   * Translate internal lot size to Deriv stake/amount
+   * Translate internal stake to Deriv stake/amount
    * Deriv uses "stake" or "payout" as the basis for contract size
    * This is a simplified translation - may need adjustment based on the product
    */
-  private translateLotSize(lotSize: number): number {
-    // For now, we assume lot size maps directly to stake
+  private translateStake(stake: number): number {
+    // For now, we assume stake maps directly
     // This may need to be adjusted based on the specific Deriv product
-    return lotSize;
+    return stake;
   }
 
   /**
@@ -224,13 +228,13 @@ export class DerivAdapter {
         derivAccountId: request.derivAccountId,
         broker: 'deriv',
         accountType: 'demo',
-        symbol: request.symbol,
+        asset: request.asset,
         direction: request.direction,
-        orderType: request.orderType,
-        requestedEntry: request.entry,
+        sourceOrderType: request.sourceOrderType,
+        sourceEntryPrice: request.sourceEntryPrice,
         stopLoss: request.stopLoss,
         takeProfit: request.takeProfit,
-        lotSize: request.lotSize,
+        stake: request.stake,
         status: 'PENDING',
         processedAt: new Date()
       });
@@ -243,11 +247,11 @@ export class DerivAdapter {
       console.log(`[DerivAdapter] API client initialized`);
 
       // Step 6: Translate internal trade to Deriv format
-      const derivSymbol = await this.getDerivSymbol(request.symbol, request.derivAccountId, accessToken, derivAccount.accountType);
+      const derivSymbol = await this.getDerivSymbol(request.asset, request.derivAccountId, accessToken, derivAccount.accountType);
       const contractType = this.translateDirection(request.direction);
-      const stake = this.translateLotSize(request.lotSize);
+      const stake = this.translateStake(request.stake);
 
-      console.log(`[DerivAdapter] Translated trade: ${request.symbol} -> ${derivSymbol}, ${request.direction} -> ${contractType}`);
+      console.log(`[DerivAdapter] Translated trade: ${request.asset} -> ${derivSymbol}, ${request.direction} -> ${contractType}`);
 
       // Step 7: Get proposal from Deriv
       // Note: This is a simplified proposal request
@@ -271,9 +275,9 @@ export class DerivAdapter {
         currency: 'USD',
         duration: 1,
         duration_unit: 'd',
-        internal_symbol: request.symbol,
+        internal_symbol: request.asset,
         internal_direction: request.direction,
-        internal_lotSize: request.lotSize
+        internal_lotSize: request.stake
       });
       let proposal;
       try {
@@ -379,13 +383,13 @@ export class DerivAdapter {
           signalId: request.signalId,
           userId: request.userId,
           derivAccountId: request.derivAccountId,
-          symbol: request.symbol,
+          asset: request.asset,
           direction: request.direction,
-          orderType: request.orderType,
-          entry: request.entry,
+          sourceOrderType: request.sourceOrderType,
+          sourceEntryPrice: request.sourceEntryPrice,
           stopLoss: request.stopLoss,
           takeProfit: request.takeProfit,
-          lotSize: request.lotSize
+          stake: request.stake
         }
       });
 
@@ -431,13 +435,13 @@ export class DerivAdapter {
       signalId: signal._id.toString(),
       userId: userEligibility.userId.toString(),
       derivAccountId: userEligibility.derivAccountId,
-      symbol: signal.symbol,
+      asset: signal.asset,
       direction: signal.direction,
-      orderType: signal.orderType,
-      entry: signal.entry,
+      sourceOrderType: signal.sourceOrderType,
+      sourceEntryPrice: signal.sourceEntryPrice,
       stopLoss: tradeParameters.finalStopLoss!,
       takeProfit: tradeParameters.finalTakeProfit!,
-      lotSize: tradeParameters.finalLotSize!
+      stake: tradeParameters.finalStake!
     };
   }
 }

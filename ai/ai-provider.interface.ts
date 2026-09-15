@@ -4,6 +4,10 @@
  * This abstraction allows the platform to work with different signal extraction implementations
  */
 
+import { SignalExtractionResult } from './signal-schema';
+
+export type { SignalExtractionResult };
+
 export interface SignalEngine {
   /**
    * Extract trading signal from a Telegram message
@@ -21,14 +25,4 @@ export interface SignalEngine {
    * Get the engine version
    */
   getEngineVersion(): string;
-}
-
-export interface SignalExtractionResult {
-  isValidSignal: boolean;
-  symbol?: string;
-  direction?: 'BUY' | 'SELL';
-  orderType?: 'MARKET' | 'LIMIT' | 'STOP';
-  entry?: number;
-  stopLoss?: number;
-  takeProfits?: number[];
 }

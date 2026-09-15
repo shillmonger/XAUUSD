@@ -10,10 +10,10 @@ export interface TrainingExample {
   input: string;
   expected: {
     isValidSignal: boolean;
-    symbol?: string;
+    asset?: string;
     direction?: 'BUY' | 'SELL';
-    orderType?: 'MARKET' | 'LIMIT' | 'STOP';
-    entry?: number;
+    sourceOrderType?: 'MARKET' | 'LIMIT' | 'STOP';
+    sourceEntryPrice?: number;
     stopLoss?: number;
     takeProfits?: number[];
   };
@@ -29,10 +29,10 @@ export const TRAINING_EXAMPLES: TrainingExample[] = [
     input: "GOLD Buy Limit 4088\nTP 4091\nTP 4100\nTP 4120\nSL 4078",
     expected: {
       isValidSignal: true,
-      symbol: "XAUUSD",
+      asset: "XAUUSD",
       direction: "BUY",
-      orderType: "LIMIT",
-      entry: 4088,
+      sourceOrderType: "LIMIT",
+      sourceEntryPrice: 4088,
       stopLoss: 4078,
       takeProfits: [4091, 4100, 4120]
     },
@@ -42,10 +42,10 @@ export const TRAINING_EXAMPLES: TrainingExample[] = [
     input: "XAUUSD BUY NOW\nSL 4070\nTP 4090",
     expected: {
       isValidSignal: true,
-      symbol: "XAUUSD",
+      asset: "XAUUSD",
       direction: "BUY",
-      orderType: "MARKET",
-      entry: undefined,
+      sourceOrderType: "MARKET",
+      sourceEntryPrice: undefined,
       stopLoss: 4070,
       takeProfits: [4090]
     },
@@ -55,10 +55,10 @@ export const TRAINING_EXAMPLES: TrainingExample[] = [
     input: "GOLD SELL LIMIT 4105\nSL 4120\nTP1 4095\nTP2 4085",
     expected: {
       isValidSignal: true,
-      symbol: "XAUUSD",
+      asset: "XAUUSD",
       direction: "SELL",
-      orderType: "LIMIT",
-      entry: 4105,
+      sourceOrderType: "LIMIT",
+      sourceEntryPrice: 4105,
       stopLoss: 4120,
       takeProfits: [4085, 4095]
     },
@@ -68,10 +68,10 @@ export const TRAINING_EXAMPLES: TrainingExample[] = [
     input: "XAUUSD BUY STOP 4090\nSL 4078\nTP 4100\nTP 4110",
     expected: {
       isValidSignal: true,
-      symbol: "XAUUSD",
+      asset: "XAUUSD",
       direction: "BUY",
-      orderType: "STOP",
-      entry: 4090,
+      sourceOrderType: "STOP",
+      sourceEntryPrice: 4090,
       stopLoss: 4078,
       takeProfits: [4100, 4110]
     },
@@ -81,10 +81,10 @@ export const TRAINING_EXAMPLES: TrainingExample[] = [
     input: "XAUUSD SELL NOW\nENTRY 4050\nTP 4045\nSL 4060",
     expected: {
       isValidSignal: true,
-      symbol: "XAUUSD",
+      asset: "XAUUSD",
       direction: "SELL",
-      orderType: "MARKET",
-      entry: 4050,
+      sourceOrderType: "MARKET",
+      sourceEntryPrice: 4050,
       stopLoss: 4060,
       takeProfits: [4045]
     },
@@ -96,10 +96,10 @@ export const TRAINING_EXAMPLES: TrainingExample[] = [
     input: "GOLD BUY LIMIT 4088\nTP 4091\nSL 4078",
     expected: {
       isValidSignal: true,
-      symbol: "XAUUSD",
+      asset: "XAUUSD",
       direction: "BUY",
-      orderType: "LIMIT",
-      entry: 4088,
+      sourceOrderType: "LIMIT",
+      sourceEntryPrice: 4088,
       stopLoss: 4078,
       takeProfits: [4091]
     },
@@ -236,10 +236,10 @@ export const TRAINING_EXAMPLES: TrainingExample[] = [
     input: "gold buy limit 4088\ntp 4091\ntp 4100\nsl 4078",
     expected: {
       isValidSignal: true,
-      symbol: "XAUUSD",
+      asset: "XAUUSD",
       direction: "BUY",
-      orderType: "LIMIT",
-      entry: 4088,
+      sourceOrderType: "LIMIT",
+      sourceEntryPrice: 4088,
       stopLoss: 4078,
       takeProfits: [4091, 4100]
     },
@@ -251,10 +251,10 @@ export const TRAINING_EXAMPLES: TrainingExample[] = [
     input: "GOLD  Buy  Limit  4088  TP  4091  SL  4078",
     expected: {
       isValidSignal: true,
-      symbol: "XAUUSD",
+      asset: "XAUUSD",
       direction: "BUY",
-      orderType: "LIMIT",
-      entry: 4088,
+      sourceOrderType: "LIMIT",
+      sourceEntryPrice: 4088,
       stopLoss: 4078,
       takeProfits: [4091]
     },
@@ -266,10 +266,10 @@ export const TRAINING_EXAMPLES: TrainingExample[] = [
     input: "GOLD Buy Limit 4088, TP 4091, TP 4100, SL 4078",
     expected: {
       isValidSignal: true,
-      symbol: "XAUUSD",
+      asset: "XAUUSD",
       direction: "BUY",
-      orderType: "LIMIT",
-      entry: 4088,
+      sourceOrderType: "LIMIT",
+      sourceEntryPrice: 4088,
       stopLoss: 4078,
       takeProfits: [4091, 4100]
     },
@@ -293,5 +293,5 @@ export function getSymbolExamples(): TrainingExample[] {
 }
 
 export function getOrderTypeExamples(): TrainingExample[] {
-  return TRAINING_EXAMPLES.filter(ex => ex.expected.orderType);
+  return TRAINING_EXAMPLES.filter(ex => ex.expected.sourceOrderType);
 }

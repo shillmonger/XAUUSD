@@ -6,10 +6,10 @@
 
 import { SignalEngine, SignalExtractionResult } from './ai-provider.interface';
 import {
-  extractSymbol,
+  extractAsset,
   extractDirection,
-  extractOrderType,
-  extractEntry,
+  extractSourceOrderType,
+  extractSourceEntryPrice,
   extractEntryFromRange,
   extractStopLoss,
   extractTakeProfits,
@@ -44,18 +44,18 @@ export class InternalSignalEngine implements SignalEngine {
         };
       }
 
-      // Step 2: Extract symbol
-      const rawSymbol = extractSymbol(messageText);
-      const normalizedSymbol = normalizeSymbol(rawSymbol);
+      // Step 2: Extract asset (renamed from symbol)
+      const rawAsset = extractAsset(messageText);
+      const normalizedSymbol = normalizeSymbol(rawAsset);
       
       if (!normalizedSymbol) {
-        console.log(`[Signal Engine] No valid XAUUSD symbol found, rejecting`);
+        console.log(`[Signal Engine] No valid XAUUSD asset found, rejecting`);
         return {
           isValidSignal: false,
         };
       }
 
-      console.log(`[Signal Engine] Symbol extracted: ${normalizedSymbol}`);
+      console.log(`[Signal Engine] Asset extracted: ${normalizedSymbol}`);
 
       // Step 3: Extract direction
       const rawDirection = extractDirection(messageText);
@@ -65,29 +65,26 @@ export class InternalSignalEngine implements SignalEngine {
         console.log(`[Signal Engine] No valid direction found, rejecting`);
         return {
           isValidSignal: false,
-          symbol: normalizedSymbol,
         };
       }
 
       console.log(`[Signal Engine] Direction extracted: ${normalizedDirection}`);
 
-      // Step 4: Extract order type
-      const rawOrderType = extractOrderType(messageText);
+      // Step 4: Extract source order type (renamed from order type)
+      const rawOrderType = extractSourceOrderType(messageText);
       const normalizedOrderType = normalizeOrderType(rawOrderType);
       
       if (!normalizedOrderType) {
         console.log(`[Signal Engine] No valid order type found, rejecting`);
         return {
           isValidSignal: false,
-          symbol: normalizedSymbol,
-          direction: normalizedDirection,
         };
       }
 
       console.log(`[Signal Engine] Order type extracted: ${normalizedOrderType}`);
 
-      // Step 5: Extract entry (required for LIMIT/STOP, optional for MARKET)
-      const rawEntry = extractEntry(messageText, normalizedOrderType);
+      // Step 5: Extract source entry price (renamed from entry)
+      const rawEntry = extractSourceEntryPrice(messageText, normalizedOrderType);
       const normalizedEntry = rawEntry !== undefined ? normalizePrice(rawEntry) : undefined;
       
       console.log(`[Signal Engine] Raw entry extracted: ${rawEntry}, Normalized entry: ${normalizedEntry}`);
@@ -96,9 +93,6 @@ export class InternalSignalEngine implements SignalEngine {
         console.log(`[Signal Engine] LIMIT/STOP order requires entry price, rejecting`);
         return {
           isValidSignal: false,
-          symbol: normalizedSymbol,
-          direction: normalizedDirection,
-          orderType: normalizedOrderType,
         };
       }
 
@@ -112,10 +106,6 @@ export class InternalSignalEngine implements SignalEngine {
         console.log(`[Signal Engine] No valid stop loss found, rejecting`);
         return {
           isValidSignal: false,
-          symbol: normalizedSymbol,
-          direction: normalizedDirection,
-          orderType: normalizedOrderType,
-          entry: normalizedEntry,
         };
       }
 
@@ -129,11 +119,6 @@ export class InternalSignalEngine implements SignalEngine {
         console.log(`[Signal Engine] No valid take profits found, rejecting`);
         return {
           isValidSignal: false,
-          symbol: normalizedSymbol,
-          direction: normalizedDirection,
-          orderType: normalizedOrderType,
-          entry: normalizedEntry,
-          stopLoss: normalizedStopLoss,
         };
       }
 
@@ -151,10 +136,10 @@ export class InternalSignalEngine implements SignalEngine {
             console.log(`[Signal Engine] BUY signal SL ${normalizedStopLoss} is above entry ${normalizedEntry}, rejecting`);
             return {
               isValidSignal: false,
-              symbol: normalizedSymbol,
+              asset: normalizedSymbol,
               direction: normalizedDirection,
-              orderType: normalizedOrderType,
-              entry: normalizedEntry,
+              sourceOrderType: normalizedOrderType,
+              sourceEntryPrice: normalizedEntry,
               stopLoss: normalizedStopLoss,
             };
           }
@@ -164,10 +149,10 @@ export class InternalSignalEngine implements SignalEngine {
               console.log(`[Signal Engine] BUY signal TP ${tp} is below entry ${normalizedEntry}, rejecting`);
               return {
                 isValidSignal: false,
-                symbol: normalizedSymbol,
+                asset: normalizedSymbol,
                 direction: normalizedDirection,
-                orderType: normalizedOrderType,
-                entry: normalizedEntry,
+                sourceOrderType: normalizedOrderType,
+                sourceEntryPrice: normalizedEntry,
                 stopLoss: normalizedStopLoss,
                 takeProfits: normalizedTakeProfits,
               };
@@ -181,10 +166,10 @@ export class InternalSignalEngine implements SignalEngine {
             console.log(`[Signal Engine] SELL signal SL ${normalizedStopLoss} is below entry ${normalizedEntry}, rejecting`);
             return {
               isValidSignal: false,
-              symbol: normalizedSymbol,
+              asset: normalizedSymbol,
               direction: normalizedDirection,
-              orderType: normalizedOrderType,
-              entry: normalizedEntry,
+              sourceOrderType: normalizedOrderType,
+              sourceEntryPrice: normalizedEntry,
               stopLoss: normalizedStopLoss,
             };
           }
@@ -194,10 +179,10 @@ export class InternalSignalEngine implements SignalEngine {
               console.log(`[Signal Engine] SELL signal TP ${tp} is above entry ${normalizedEntry}, rejecting`);
               return {
                 isValidSignal: false,
-                symbol: normalizedSymbol,
+                asset: normalizedSymbol,
                 direction: normalizedDirection,
-                orderType: normalizedOrderType,
-                entry: normalizedEntry,
+                sourceOrderType: normalizedOrderType,
+                sourceEntryPrice: normalizedEntry,
                 stopLoss: normalizedStopLoss,
                 takeProfits: normalizedTakeProfits,
               };
@@ -207,13 +192,13 @@ export class InternalSignalEngine implements SignalEngine {
       }
       */
 
-      // Step 9: Build the result
+      // Step 9: Build the result with new field names
       const result: SignalExtractionResult = {
         isValidSignal: true,
-        symbol: normalizedSymbol,
+        asset: normalizedSymbol,  // was: symbol
         direction: normalizedDirection,
-        orderType: normalizedOrderType,
-        entry: normalizedEntry, // Can be null for MARKET orders
+        sourceOrderType: normalizedOrderType,  // was: orderType
+        sourceEntryPrice: normalizedEntry,  // was: entry
         stopLoss: normalizedStopLoss,
         takeProfits: normalizedTakeProfits,
       };

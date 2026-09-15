@@ -212,8 +212,8 @@ export class UserEligibilityService {
         return result;
       }
       
-      if (!tradeParameters.finalLotSize) {
-        result.rejectionReason = 'MISSING_FINAL_LOT_SIZE';
+      if (!tradeParameters.finalStake) {
+        result.rejectionReason = 'MISSING_FINAL_STAKE';
         await this.createEligibilityRecord(signal, derivAccount, result, tradeParameters._id);
         return result;
       }
