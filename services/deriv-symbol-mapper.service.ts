@@ -134,7 +134,7 @@ export class DerivSymbolMapper {
     // STRATEGY 3: RELAXED - ignore exchange status and suspension status
     const relaxedMatch = activeSymbols.find(s => {
       const normalizedName = s.underlying_symbol?.replace(/[\s/]/g, '').toUpperCase();
-      return normalizedName.includes('XAU') &&
+      return normalizedName.startsWith('XAU') &&
              normalizedName.includes('USD') &&
              s.underlying_symbol_type === 'forex';
     });
@@ -162,7 +162,7 @@ export class DerivSymbolMapper {
     // STRATEGY 4: VERY RELAXED - ignore symbol type as well
     const veryRelaxedMatch = activeSymbols.find(s => {
       const normalizedName = s.underlying_symbol?.replace(/[\s/]/g, '').toUpperCase();
-      return normalizedName.includes('XAU') &&
+      return normalizedName.startsWith('XAU') &&
              normalizedName.includes('USD');
     });
 

@@ -74,6 +74,10 @@ export class DerivAdapter {
   private async getDerivSymbol(internalAsset: string, derivAccountId: string, accessToken: string, accountType: 'demo' | 'real'): Promise<string> {
     console.log(`[DerivAdapter] Getting Deriv symbol for: ${internalAsset}`);
     
+    // Clear cache to force fresh discovery (temporary for debugging)
+    this.symbolMappingCache.clear();
+    derivSymbolMapper.clearCache();
+    
     // Check cache first
     const cached = this.symbolMappingCache.get(internalAsset);
     if (cached) {
@@ -384,6 +388,7 @@ export class DerivAdapter {
         } catch (proposalError) {
           const errorMessage = proposalError instanceof Error ? proposalError.message : 'Unknown error';
           
+          // CRITICAL: Check for take_profit errors FIRST before stake errors
           // If error is about take_profit limit (LimitOrderAmountTooHigh), remove take_profit
           if (errorMessage.includes('LimitOrderAmountTooHigh') && attempt < maxRetries) {
             const match = errorMessage.match(/lower than (\d+\.?\d*)/);
