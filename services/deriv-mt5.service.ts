@@ -378,11 +378,13 @@ export function resolveDerivAppId(env: NodeJS.ProcessEnv = process.env): string 
   const candidate =
     env.DERIV_APP_ID ||
     env.DERIV_WS_APP_ID ||
-    env.DERIV_CLIENT_ID ||
     '';
 
   if (!candidate || candidate === 'deriv_app_id' || candidate === 'deriv_app_secret') {
-    throw new Error('DERIV_APP_ID or DERIV_WS_APP_ID must be set to a valid Deriv MT5 app ID.');
+    throw new Error(
+      'DERIV_APP_ID or DERIV_WS_APP_ID must be set to a valid Deriv MT5/CFD WebSocket app ID. ' +
+      'The OAuth client ID is not the same as the MT5 WebSocket app ID.'
+    );
   }
 
   return candidate;

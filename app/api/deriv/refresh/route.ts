@@ -3,7 +3,7 @@ import connectDB from '@/lib/db';
 import DerivAccount from '@/models/DerivAccount';
 import { verifyToken } from '@/lib/auth';
 import { decrypt } from '@/lib/encryption';
-import { createDerivMT5Service } from '@/services/deriv-mt5.service';
+import { createDerivMT5Service, resolveDerivAppId } from '@/services/deriv-mt5.service';
 
 /**
  * POST /api/deriv/refresh
@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Use the MT5 service to fetch current account settings via WebSocket
-    const mt5Service = createDerivMT5Service(accessToken, process.env.DERIV_CLIENT_ID!);
+    const mt5Service = createDerivMT5Service(accessToken, resolveDerivAppId());
 
     const mt5Login = derivAccount.mt5Login;
     if (!mt5Login) {

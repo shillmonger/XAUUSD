@@ -1,4 +1,8 @@
-import { createDerivMT5Service, isSupportedMT5CFDAccount } from '../services/deriv-mt5.service';
+import {
+  createDerivMT5Service,
+  isSupportedMT5CFDAccount,
+  resolveDerivAppId,
+} from '../services/deriv-mt5.service';
 import { MT5ExecutionService } from '../services/mt5-execution.service';
 import { TradeMonitorService } from '../services/trade-monitor.service';
 
@@ -53,6 +57,14 @@ describe('Deriv MT5/CFD migration', () => {
     expect(settings.balance).toBe(9995);
     expect(settings.currency).toBe('USD');
     expect(settings.accountStatus).toBe('active');
+  });
+
+  it('requires a dedicated Deriv MT5 app ID and rejects OAuth client ID as the WebSocket app', () => {
+    expect(resolveDerivAppId({ DERIV_APP_ID: '5678' } as any)).toBe('5678');
+
+    expect(() => resolveDerivAppId({ DERIV_CLIENT_ID: '1234' } as any)).toThrow(
+      /DERIV_APP_ID.*MT5\/CFD WebSocket app ID/i
+    );
   });
 
   it('routes XAUUSD signals to the MT5/CFD execution layer', () => {
