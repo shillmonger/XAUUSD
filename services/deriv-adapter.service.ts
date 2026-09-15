@@ -291,11 +291,11 @@ export class DerivAdapter {
       console.log(`[DerivAdapter] Translated trade: ${request.asset} -> ${derivSymbol}, ${request.direction} -> ${contractType}`);
 
       // Step 7: Get proposal from Deriv
-      // For Deriv Multipliers:
+      // For Deriv Multipliers (confirmed from official documentation):
       // - contract_type: MULTUP (BUY) or MULTDOWN (SELL)
       // - multiplier: leverage multiplier (e.g., 10 for 10x)
-      // - SL/TP mechanism is unclear from documentation - direct fields are rejected
-      // Note: Current Deriv documentation does not clearly show how to set SL/TP in proposal
+      // - limit_order: contains stop_loss and take_profit (only for MULTUP/MULTDOWN)
+      // Official docs: "Add an order to close the contract once the order condition is met (only for MULTUP and MULTDOWN)"
       const proposalRequest = {
         proposal: 1,
         underlying_symbol: derivSymbol,
@@ -306,9 +306,11 @@ export class DerivAdapter {
         duration_unit: 's', // Duration unit: 's' for seconds (as shown in Multipliers examples)
         multiplier: 10, // Multiplier for leverage (10x - this may need to be configurable)
         subscribe: 1,
-        // SL/TP removed - direct fields are rejected by API
-        // limit_order approach is not confirmed from official documentation
-        // May need to be handled via contract_update or another mechanism
+        // SL/TP via limit_order (confirmed from official documentation for MULTUP/MULTDOWN)
+        limit_order: {
+          stop_loss: request.stopLoss,
+          take_profit: request.takeProfit
+        }
       };
 
       console.log(`[DerivAdapter] Requesting proposal with params:`, {
@@ -320,12 +322,13 @@ export class DerivAdapter {
         duration_unit: 's',
         multiplier: 10,
         subscribe: 1,
+        limit_order: {
+          stop_loss: request.stopLoss,
+          take_profit: request.takeProfit
+        },
         internal_symbol: request.asset,
         internal_direction: request.direction,
-        internal_stake: request.stake,
-        internal_stopLoss: request.stopLoss,
-        internal_takeProfit: request.takeProfit,
-        note: 'SL/TP not included in proposal - mechanism unclear from documentation'
+        internal_stake: request.stake
       });
       let proposal;
       try {
@@ -368,14 +371,10 @@ export class DerivAdapter {
       console.log(`[DerivAdapter] Contract bought: ${buyResponse.contract_id}`);
 
       // Step 9: Skip post-purchase SL/TP update
-      // Deriv Multipliers SL/TP mechanism is unclear from official documentation:
-      // - Direct SL/TP fields in proposal are rejected by API
-      // - limit_order in proposal is not confirmed from official docs
-      // - contract_update is not supported for Multipliers (ContractUpdateNotAllowed error)
-      // Current trade will execute without SL/TP protection
-      console.warn(`[DerivAdapter] SL/TP NOT APPLIED - mechanism unclear from Deriv documentation`);
-      console.warn(`[DerivAdapter] Trade will execute without Stop Loss/Take Profit protection`);
-      console.warn(`[DerivAdapter] Required SL: ${request.stopLoss}, TP: ${request.takeProfit}`);
+      // SL/TP are set in the proposal request via limit_order (confirmed from official docs)
+      // contract_update is not needed for Multipliers
+      // The trade should execute with SL/TP protection from the proposal
+      console.log(`[DerivAdapter] SL/TP set in proposal via limit_order: SL=${request.stopLoss}, TP=${request.takeProfit}`);
 
       // Step 10: Update copy trade record with success
       copyTrade.brokerContractId = buyResponse.contract_id;
@@ -404,7 +403,7 @@ export class DerivAdapter {
       console.error('[DerivAdapter] Trade execution failed with details:', {
         error_message: error instanceof Error ? error.message : 'UNKNOWN_ERROR',
         error_name: error instanceof Error ? error.name : 'UNKNOWN_ERROR',
-        error_stack: error instanceof Error ? error.stack : undefined,
+          error_stack: error instanceof Error ? error.stack : undefined,
         error_type: typeof error,
         request_details: {
           signalId: request.signalId,

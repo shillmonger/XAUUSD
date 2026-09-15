@@ -27,6 +27,10 @@ export interface ProposalRequest {
   subscribe?: number;
   barrier?: string;
   barrier_type?: string;
+  limit_order?: {
+    stop_loss?: number;
+    take_profit?: number;
+  };
   [key: string]: any;
 }
 
