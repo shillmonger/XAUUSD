@@ -18,7 +18,7 @@ import CopyTrade from '@/models/CopyTrade';
 import MT5SignalQueueModel from '@/models/MT5SignalQueue';
 import { decrypt } from '@/lib/encryption';
 import { MT5ExecutionService, MT5TradeSignal, MT5ExecutionResponse } from './mt5-execution.service';
-import { createDerivMT5Service } from './deriv-mt5.service';
+import { createDerivMT5Service, resolveDerivAppId } from './deriv-mt5.service';
 import { ISignal } from '@/models/Signal';
 import { ITradeParameters } from '@/models/TradeParameters';
 import { IUserEligibility } from '@/models/UserEligibility';
@@ -133,7 +133,7 @@ export class MT5Adapter {
       }
 
       // Step 4: Verify MT5 account is still valid using MT5 service
-      const mt5Service = createDerivMT5Service(accessToken, process.env.DERIV_CLIENT_ID!);
+      const mt5Service = createDerivMT5Service(accessToken, resolveDerivAppId());
       const mt5Validation = await mt5Service.validateMT5Account(derivAccount.mt5Login!);
       
       if (!mt5Validation.isValid) {

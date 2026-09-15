@@ -17,7 +17,7 @@ import StopLossManagement from '@/models/StopLossManagement';
 import PositionLimit from '@/models/PositionLimit';
 import { decrypt } from '@/lib/encryption';
 import { ISignal } from '@/models/Signal';
-import { createDerivMT5Service } from './deriv-mt5.service';
+import { createDerivMT5Service, resolveDerivAppId } from './deriv-mt5.service';
 
 export interface ResolvedTradeParameters {
   signalId: string;
@@ -96,7 +96,7 @@ export class TradeParameterResolver {
       
       // Create Deriv API client using WebSocket
       console.log(`[TradeParameterResolver] Creating MT5 service for ${derivAccount.accountType} account`);
-      const mt5Service = createDerivMT5Service(accessToken, process.env.DERIV_CLIENT_ID!);
+      const mt5Service = createDerivMT5Service(accessToken, resolveDerivAppId());
       
       // Fetch account information to get current balance from MT5
       console.log(`[TradeParameterResolver] Fetching account info from MT5 API`);

@@ -374,6 +374,21 @@ export class DerivMT5Service {
 // Factory
 // ---------------------------------------------------------------------------
 
-export function createDerivMT5Service(accessToken: string, appId: string): DerivMT5Service {
-  return new DerivMT5Service(accessToken, appId);
+export function resolveDerivAppId(env: NodeJS.ProcessEnv = process.env): string {
+  const candidate =
+    env.DERIV_APP_ID ||
+    env.DERIV_WS_APP_ID ||
+    env.DERIV_CLIENT_ID ||
+    '';
+
+  if (!candidate || candidate === 'deriv_app_id' || candidate === 'deriv_app_secret') {
+    throw new Error('DERIV_APP_ID or DERIV_WS_APP_ID must be set to a valid Deriv MT5 app ID.');
+  }
+
+  return candidate;
+}
+
+export function createDerivMT5Service(accessToken: string, appId?: string): DerivMT5Service {
+  const resolvedAppId = appId || resolveDerivAppId();
+  return new DerivMT5Service(accessToken, resolvedAppId);
 }

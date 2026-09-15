@@ -4,7 +4,7 @@ import User from '@/models/User';
 import DerivAccount from '@/models/DerivAccount';
 import OAuthState from '@/models/OAuthState';
 import { encrypt } from '@/lib/encryption';
-import { createDerivMT5Service } from '@/services/deriv-mt5.service';
+import { createDerivMT5Service, resolveDerivAppId } from '@/services/deriv-mt5.service';
 
 export async function GET(request: NextRequest) {
   try {
@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
     // Verify the connected Deriv MT5/CFD account using the MT5 service
     console.log('[Deriv Callback] Starting MT5 account verification');
     
-    const mt5Service = createDerivMT5Service(accessToken, process.env.DERIV_CLIENT_ID!);
+    const mt5Service = createDerivMT5Service(accessToken, resolveDerivAppId());
     
     // Determine target account type from OAuth state or default to demo
     const targetAccountType = (oauthState.targetAccountType as 'demo' | 'real') || 'demo';

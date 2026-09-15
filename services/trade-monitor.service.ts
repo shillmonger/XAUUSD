@@ -18,7 +18,7 @@
 import CopyTrade from '@/models/CopyTrade';
 import DerivAccount from '@/models/DerivAccount';
 import { decrypt } from '@/lib/encryption';
-import { createDerivMT5Service } from './deriv-mt5.service';
+import { createDerivMT5Service, resolveDerivAppId } from './deriv-mt5.service';
 
 export interface MonitorResult {
   tradeId: string;
@@ -202,7 +202,7 @@ export class TradeMonitorService {
       }
       
       // Step 5: Create MT5 service for position monitoring
-      const mt5Service = createDerivMT5Service(accessToken, process.env.DERIV_CLIENT_ID!);
+      const mt5Service = createDerivMT5Service(accessToken, resolveDerivAppId());
       
       console.log(`[TradeMonitor] Checking MT5 position: ${trade.mt5PositionId}`);
       
