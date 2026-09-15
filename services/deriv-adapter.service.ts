@@ -115,6 +115,45 @@ export class DerivAdapter {
   }
 
   /**
+   * Check if asset is available for Multipliers and determine routing
+   * Based on Deriv support guidance: check availability before creating proposals
+   */
+  private async determineTradingRoute(asset: string): Promise<{
+    useMultipliers: boolean;
+    reason: string;
+    availableSymbol?: string;
+    multipliers?: number[];
+  }> {
+    console.log(`[DerivAdapter] Determining trading route for asset: ${asset}`);
+    
+    try {
+      const availability = await this.apiClient!.checkAssetAvailabilityForMultipliers(asset);
+      
+      if (availability.availableForMultipliers) {
+        console.log(`[DerivAdapter] Asset ${asset} available for Multipliers, using Multipliers route`);
+        return {
+          useMultipliers: true,
+          reason: 'Asset available for Multipliers',
+          multipliers: availability.multipliersMultipliers
+        };
+      } else {
+        console.log(`[DerivAdapter] Asset ${asset} NOT available for Multipliers, should use MT5 route`);
+        return {
+          useMultipliers: false,
+          reason: 'Asset not available for Multipliers, MT5 route required'
+        };
+      }
+    } catch (error) {
+      console.error(`[DerivAdapter] Error determining trading route:`, error);
+      // Fallback: try Multipliers first, will fail with clear error if not available
+      return {
+        useMultipliers: true,
+        reason: 'Availability check failed, attempting Multipliers as fallback'
+      };
+    }
+  }
+
+  /**
    * Translate internal stake to Deriv stake/amount
    * Deriv uses "stake" or "payout" as the basis for contract size
    * This is a simplified translation - may need adjustment based on the product
@@ -288,6 +327,25 @@ export class DerivAdapter {
       await this.initializeApiClient(request.derivAccountId, accessToken);
       console.log(`[DerivAdapter] API client initialized`);
 
+      // Step 6: Determine trading route (Multipliers vs MT5) based on asset availability
+      const routeDecision = await this.determineTradingRoute(request.asset);
+      console.log(`[DerivAdapter] Trading route decision:`, routeDecision);
+
+      if (!routeDecision.useMultipliers) {
+        // MT5 route - not yet implemented
+        await copyTrade.updateOne({
+          status: 'FAILED',
+          failureReason: `MT5 route required: ${routeDecision.reason} (not yet implemented)`
+        });
+        
+        result.error = 'MT5_ROUTE_REQUIRED_NOT_IMPLEMENTED';
+        result.errorCode = 'MT5_ROUTE_REQUIRED_NOT_IMPLEMENTED';
+        result.status = 'FAILED';
+        
+        console.log(`[DerivAdapter] MT5 route required but not implemented`);
+        return result;
+      }
+
       // Step 6: Translate internal trade to Deriv format
       const derivSymbol = await this.getDerivSymbol(request.asset, request.derivAccountId, accessToken, derivAccount.accountType);
       const contractType = this.translateDirection(request.direction);
@@ -295,10 +353,10 @@ export class DerivAdapter {
 
       console.log(`[DerivAdapter] Translated trade: ${request.asset} -> ${derivSymbol}, ${request.direction} -> ${contractType}`);
 
-      // Step 7: Get proposal from Deriv with dynamic stake validation
+      // Step 8: Get proposal from Deriv with dynamic stake validation
       // For Deriv Multipliers (confirmed from official documentation):
       // - contract_type: MULTUP (BUY) or MULTDOWN (SELL)
-      // - multiplier: leverage multiplier (acceptable values for XAUUSD: 100,200,300,500,800)
+      // - multiplier: leverage multiplier (from availability check)
       // - limit_order: contains stop_loss and take_profit (only for MULTUP/MULTDOWN)
       // - validation_params in response contains max/min stake limits
       // Official docs: "Add an order to close the contract once the order condition is met (only for MULTUP and MULTDOWN)"
@@ -306,6 +364,13 @@ export class DerivAdapter {
       let currentStake = stake;
       let maxRetries = 5; // Increased retries to find valid stake
       let proposal: any = null;
+      
+      // Use the lowest available multiplier from availability check, or default to 100
+      const availableMultiplier = routeDecision.multipliers && routeDecision.multipliers.length > 0 
+        ? Math.min(...routeDecision.multipliers) 
+        : 100;
+      
+      console.log(`[DerivAdapter] Using multiplier: ${availableMultiplier} (from availability check)`);
 
       for (let attempt = 1; attempt <= maxRetries; attempt++) {
         const proposalRequest = {
@@ -316,7 +381,7 @@ export class DerivAdapter {
           basis: 'stake' as const,
           currency: 'USD',
           duration_unit: 's', // Duration unit: 's' for seconds (as shown in Multipliers examples)
-          multiplier: 100, // Multiplier for leverage (100x - acceptable range for XAUUSD: 100,200,300,500,800)
+          multiplier: availableMultiplier, // Use dynamic multiplier from availability check
           subscribe: 1,
           // SL/TP via limit_order (confirmed from official documentation for MULTUP/MULTDOWN)
           limit_order: {

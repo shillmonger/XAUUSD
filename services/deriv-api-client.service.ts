@@ -61,6 +61,15 @@ export interface ProposalResponse {
   [key: string]: any;
 }
 
+export interface AssetAvailability {
+  asset: string;
+  availableForMultipliers: boolean;
+  availableForMT5: boolean;
+  multipliersContractTypes?: string[];
+  multipliersMultipliers?: number[];
+  error?: string;
+}
+
 export interface BuyRequest {
   proposal_id?: string;
   price?: number;
@@ -357,6 +366,73 @@ export class DerivApiClient {
     });
 
     return response.contracts_for || {};
+  }
+
+  /**
+   * Check if an asset is available for Multipliers trading
+   * Uses contracts_for API to check availability of MULTUP/MULTDOWN contracts
+   */
+  async checkAssetAvailabilityForMultipliers(asset: string): Promise<AssetAvailability> {
+    console.log(`[DerivApiClient] Checking asset availability for Multipliers: ${asset}`);
+    
+    try {
+      // Try multiple possible symbol names for Gold
+      const possibleSymbols = [asset, 'GOLD', 'XAUUSD'];
+      let availableSymbol: string | null = null;
+      let contractTypes: string[] = [];
+      let multipliers: number[] = [];
+
+      for (const symbol of possibleSymbols) {
+        try {
+          const contractsData = await this.getContractsFor(symbol);
+          
+          if (contractsData.available && contractsData.available.length > 0) {
+            // Check if MULTUP or MULTDOWN are available
+            const multiplierContracts = contractsData.available.filter((c: any) => 
+              c.contract_type === 'MULTUP' || c.contract_type === 'MULTDOWN'
+            );
+
+            if (multiplierContracts.length > 0) {
+              availableSymbol = symbol;
+              contractTypes = multiplierContracts.map((c: any) => c.contract_type);
+              
+              // Extract available multiplier values
+              const allMultipliers = multiplierContracts.flatMap((c: any) => 
+                (c.multipliers_range?.allowed as number[]) || []
+              );
+              multipliers = [...new Set(allMultipliers)] as number[]; // Remove duplicates
+              
+              console.log(`[DerivApiClient] Asset ${asset} available for Multipliers as ${symbol}`, {
+                contractTypes,
+                multipliers
+              });
+              
+              break;
+            }
+          }
+        } catch (error) {
+          // Try next symbol
+          console.log(`[DerivApiClient] Symbol ${symbol} not available, trying next...`);
+        }
+      }
+
+      return {
+        asset,
+        availableForMultipliers: !!availableSymbol,
+        availableForMT5: true, // Assume MT5 availability for Gold (per Deriv support)
+        multipliersContractTypes: contractTypes,
+        multipliersMultipliers: multipliers
+      };
+
+    } catch (error) {
+      console.error(`[DerivApiClient] Error checking asset availability:`, error);
+      return {
+        asset,
+        availableForMultipliers: false,
+        availableForMT5: true,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
   }
 
   /**

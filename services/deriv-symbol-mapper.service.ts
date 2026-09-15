@@ -91,7 +91,7 @@ export class DerivSymbolMapper {
           underlyingSymbolName: exactMatch.underlying_symbol_name,
           underlyingSymbolType: exactMatch.underlying_symbol_type,
           market: exactMatch.market,
-          submarket: exactMatch.submarket,
+          submarket: exactMatch.submarket,  
           exchangeIsOpen: exactMatch.exchange_is_open === 1,
           isTradingSuspended: exactMatch.is_trading_suspended !== 1,
           verified: true,
