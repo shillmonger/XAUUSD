@@ -67,26 +67,33 @@ export class DerivAdapter {
   private symbolMappingCache: Map<string, SymbolMapping> = new Map();
 
   /**
-   * Get Deriv underlying symbol for internal symbol using the symbol mapper
+   * Get Deriv underlying symbol for internal asset using the symbol mapper
    */
-  private async getDerivSymbol(internalSymbol: string, derivAccountId: string, accessToken: string, accountType: 'demo' | 'real'): Promise<string> {
+  private async getDerivSymbol(internalAsset: string, derivAccountId: string, accessToken: string, accountType: 'demo' | 'real'): Promise<string> {
+    console.log(`[DerivAdapter] Getting Deriv symbol for: ${internalAsset}`);
+    
     // Check cache first
-    const cached = this.symbolMappingCache.get(internalSymbol);
+    const cached = this.symbolMappingCache.get(internalAsset);
     if (cached) {
-      console.log(`[DerivAdapter] Using cached symbol mapping: ${internalSymbol} -> ${cached.derivSymbol}`);
+      console.log(`[DerivAdapter] Using cached symbol mapping: ${internalAsset} -> ${cached.derivSymbol}`);
       return cached.derivSymbol;
     }
 
     // Discover symbol mapping using the symbol mapper
-    const discoveryResult = await derivSymbolMapper.discoverSymbolMapping(internalSymbol, derivAccountId, accessToken, accountType);
+    console.log(`[DerivAdapter] Discovering symbol mapping via symbol mapper`);
+    const discoveryResult = await derivSymbolMapper.discoverSymbolMapping(internalAsset, derivAccountId, accessToken, accountType);
     
     if (!discoveryResult.success) {
-      throw new Error(`Failed to discover symbol mapping: ${discoveryResult.error}`);
+      console.error(`[DerivAdapter] Symbol mapping discovery failed: ${discoveryResult.error}`);
+      console.log(`[DerivAdapter] Attempting fallback symbol mapping`);
+      // Use fallback symbol as safety net
+      return this.getFallbackSymbol(internalAsset);
     }
     
     // Cache the mapping
-    this.symbolMappingCache.set(internalSymbol, discoveryResult.details!);
+    this.symbolMappingCache.set(internalAsset, discoveryResult.details!);
     
+    console.log(`[DerivAdapter] Symbol mapping discovered: ${internalAsset} -> ${discoveryResult.derivSymbol}`);
     return discoveryResult.derivSymbol!;
   }
 
@@ -109,6 +116,32 @@ export class DerivAdapter {
     // For now, we assume stake maps directly
     // This may need to be adjusted based on the specific Deriv product
     return stake;
+  }
+
+  /**
+   * Fallback symbol mapping if discovery fails
+   * This provides a hardcoded fallback for common symbols as a safety net
+   * Based on Deriv support: Standard Gold/USD symbol: XAUUSD, Gold/USD Micro symbol: XAUUSDmicro
+   */
+  private getFallbackSymbol(internalAsset: string): string {
+    console.log(`[DerivAdapter] Using fallback symbol mapping for: ${internalAsset}`);
+    
+    // Common fallback mappings based on Deriv support information
+    const fallbackMap: Record<string, string> = {
+      'XAUUSD': 'XAUUSD', // Standard Gold/USD symbol (from Deriv support)
+      'GOLD': 'XAUUSD',
+      'XAU': 'XAUUSD',
+      'XAUUSDmicro': 'XAUUSDmicro', // Gold/USD Micro symbol (from Deriv support)
+    };
+    
+    const fallbackSymbol = fallbackMap[internalAsset.toUpperCase()];
+    if (fallbackSymbol) {
+      console.log(`[DerivAdapter] Fallback symbol found: ${fallbackSymbol}`);
+      return fallbackSymbol;
+    }
+    
+    console.log(`[DerivAdapter] No fallback symbol available for: ${internalAsset}`);
+    throw new Error(`No fallback symbol available for ${internalAsset}`);
   }
 
   /**

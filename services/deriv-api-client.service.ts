@@ -279,10 +279,31 @@ export class DerivApiClient {
       req_id: Date.now()
     };
 
+    console.log('[DerivApiClient] Requesting active symbols');
     const response = await this.wsClient.sendAndWait<any>(request);
+    console.log('[DerivApiClient] Active symbols response:', {
+      msg_type: response.msg_type,
+      has_error: !!response.error,
+      symbol_count: response.active_symbols?.length || 0,
+      has_symbols: !!response.active_symbols
+    });
     
     if (response.error) {
+      console.error('[DerivApiClient] Active symbols error:', response.error);
       throw new Error(response.error.message);
+    }
+
+    if (!response.active_symbols || response.active_symbols.length === 0) {
+      console.warn('[DerivApiClient] No active symbols returned');
+    }
+
+    // Log some sample symbols for debugging
+    if (response.active_symbols && response.active_symbols.length > 0) {
+      console.log('[DerivApiClient] Sample symbols:', response.active_symbols.slice(0, 5).map((s: any) => ({
+        symbol: s.underlying_symbol,
+        name: s.underlying_symbol_name,
+        type: s.underlying_symbol_type
+      })));
     }
 
     return response.active_symbols || [];
