@@ -22,7 +22,7 @@ That execution path has been completely replaced by the MT5/CFD architecture.
 
 | New file | Purpose |
 |---|---|
-| services/deriv-mt5.service.ts | MT5 account management (mt5_login_list, mt5_get_settings) |
+| External MT5 EA bridge | MT5 account management and CFD execution |
 | services/mt5-adapter.service.ts | MT5/CFD trade execution adapter |
 | services/mt5-execution.service.ts | MT5 signal preparation and EA bridge interface |
 | app/api/deriv/mt5/signals/route.ts | EA polling endpoint for pending signals |

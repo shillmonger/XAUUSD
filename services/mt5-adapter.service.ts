@@ -16,9 +16,7 @@
 import DerivAccount from '@/models/DerivAccount';
 import CopyTrade from '@/models/CopyTrade';
 import MT5SignalQueueModel from '@/models/MT5SignalQueue';
-import { decrypt } from '@/lib/encryption';
 import { MT5ExecutionService, MT5TradeSignal, MT5ExecutionResponse } from './mt5-execution.service';
-import { createDerivMT5Service, resolveDerivAppId } from './deriv-mt5.service';
 import { ISignal } from '@/models/Signal';
 import { ITradeParameters } from '@/models/TradeParameters';
 import { IUserEligibility } from '@/models/UserEligibility';
@@ -101,19 +99,6 @@ export class MT5Adapter {
         throw new Error('ACCOUNT_NOT_MT5_CFD');
       }
 
-      // Check if token is expired
-      if (derivAccount.tokenExpiresAt < new Date()) {
-        throw new Error('ACCESS_TOKEN_EXPIRED');
-      }
-
-      // Decrypt the access token
-      let accessToken: string;
-      try {
-        accessToken = decrypt(derivAccount.accessTokenEncrypted);
-      } catch (error) {
-        throw new Error('TOKEN_DECRYPTION_FAILED');
-      }
-
       // Step 2: Verify demo account (safety check)
       await this.verifyDemoAccount(request.derivAccountId);
       console.log(`[MT5Adapter] Demo MT5 account verified`);
@@ -132,17 +117,8 @@ export class MT5Adapter {
         return result;
       }
 
-      // Step 4: Verify MT5 account is still valid using MT5 service
-      const mt5Service = createDerivMT5Service(accessToken, resolveDerivAppId());
-      const mt5Validation = await mt5Service.validateMT5Account(derivAccount.mt5Login!);
-      
-      if (!mt5Validation.isValid) {
-        throw new Error(`MT5 account validation failed: ${mt5Validation.error}`);
-      }
-
-      console.log(`[MT5Adapter] MT5 account validated successfully`);
-
-      // Step 5: Create pending copy trade record
+      // Step 4: Create pending copy trade record. The EA validates the live
+      // MT5 login/server before it accepts the queued instruction.
       const copyTrade = new CopyTrade({
         signalId: request.signalId,
         userId: request.userId,

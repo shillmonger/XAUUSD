@@ -13,11 +13,11 @@
  *   - validateMultiplierContracts()
  *
  * For MT5/CFD account management, use:
- *   services/deriv-mt5.service.ts
+ *   services/mt5-adapter.service.ts
  */
 throw new Error(
   '[deriv-api-client.service] This Options/Multipliers API client has been removed. ' +
-  'Use deriv-mt5.service.ts for MT5/CFD account management.'
+  'Use the MT5 EA bridge for MT5/CFD account management and execution.'
 );
 
 export {};

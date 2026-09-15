@@ -305,8 +305,8 @@ export default function ConnectDerivPage() {
         case 'options_account_not_supported':
           errorMessage = 'Options accounts are not supported. Please connect your Deriv CFD/MT5 account.';
           break;
-        case 'no_mt5_accounts':
-          errorMessage = 'No MT5 accounts found. Please create an MT5 account in your Deriv dashboard first.';
+        case 'mt5_bridge_required':
+          errorMessage = 'OAuth completed. Connect the MT5 EA bridge to verify your CFD account before trading.';
           break;
         case 'server_error':
           errorMessage = 'Server error occurred';

@@ -9,14 +9,11 @@
  *   wss://api.derivws.com/trading/v1/options/ws/demo?otp=<OTP>
  * which is the Deriv Options trading WebSocket — NOT the MT5 endpoint.
  *
- * For MT5/CFD operations, the correct WebSocket is used inside:
- *   services/deriv-mt5.service.ts
- * which connects to:
- *   wss://ws.derivws.com/websockets/v3?app_id=<APP_ID>
+ * MT5/CFD account and trade operations are handled by the external MT5 EA.
  */
 throw new Error(
-  '[deriv-websocket-client.service] This Options WebSocket client has been removed. ' +
-  'MT5/CFD WebSocket logic is in deriv-mt5.service.ts.'
+  '[deriv-websocket-client.service] Deriv Options WebSocket support has been removed. ' +
+  'MT5/CFD execution is handled by the external EA bridge.'
 );
 
 export {};

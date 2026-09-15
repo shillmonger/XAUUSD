@@ -2,19 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import DerivAccount from '@/models/DerivAccount';
 import { verifyToken } from '@/lib/auth';
-import { decrypt } from '@/lib/encryption';
-import { createDerivMT5Service, resolveDerivAppId } from '@/services/deriv-mt5.service';
 
 /**
  * POST /api/deriv/refresh
  *
- * Refreshes the connected Deriv MT5/CFD account balance and settings
- * using the official Deriv WebSocket API (mt5_get_settings).
+ * Refreshes the connected Deriv MT5/CFD account balance and settings.
  *
  * NOTE: This route no longer calls the deprecated Options REST endpoint
  * (https://api.derivws.com/trading/v1/options/accounts).
- * MT5 account data is retrieved via wss://ws.derivws.com/websockets/v3
- * using the mt5_get_settings WebSocket call.
+ * Account state must be reported by the external MT5 EA/bridge. Deriv's
+ * documented OAuth API does not expose a direct MT5 account-state endpoint.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -65,79 +62,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Decrypt the stored access token
-    let accessToken: string;
-    try {
-      accessToken = decrypt(derivAccount.accessTokenEncrypted);
-    } catch {
-      return NextResponse.json(
-        { error: 'Failed to decrypt access token' },
-        { status: 500 }
-      );
-    }
-
-    // Use the MT5 service to fetch current account settings via WebSocket
-    const mt5Service = createDerivMT5Service(accessToken, resolveDerivAppId());
-
-    const mt5Login = derivAccount.mt5Login;
-    if (!mt5Login) {
-      return NextResponse.json(
-        { error: 'MT5 login not found on account record' },
-        { status: 500 }
-      );
-    }
-
-    let updatedSettings;
-    try {
-      updatedSettings = await mt5Service.getMT5AccountSettings(mt5Login);
-    } catch (wsError) {
-      const msg = wsError instanceof Error ? wsError.message : 'Unknown error';
-      console.error('[Deriv Refresh] MT5 settings fetch failed:', msg);
-      return NextResponse.json(
-        { error: `Failed to fetch MT5 account data: ${msg}` },
-        { status: 502 }
-      );
-    }
-
-    // Verify the account is still active and is still an MT5/CFD account
-    if (updatedSettings.accountStatus !== 'active') {
-      console.warn('[Deriv Refresh] MT5 account no longer active:', updatedSettings.accountStatus);
-      derivAccount.accountStatus = updatedSettings.accountStatus;
-      derivAccount.connectionStatus = 'disconnected';
-      await derivAccount.save();
-      return NextResponse.json(
-        { error: `MT5 account status is '${updatedSettings.accountStatus}'. Please reconnect.` },
-        { status: 403 }
-      );
-    }
-
-    // Update the stored account record with fresh MT5 data
-    derivAccount.balance = updatedSettings.balance.toString();
-    derivAccount.currency = updatedSettings.currency;
-    derivAccount.accountStatus = updatedSettings.accountStatus;
-    derivAccount.mt5Server = updatedSettings.server;
-    derivAccount.lastVerifiedAt = new Date();
-    await derivAccount.save();
-
-    console.log('[Deriv Refresh] MT5 account refreshed:', {
-      login: mt5Login.substring(0, 6) + '...',
-      balance: updatedSettings.balance,
-      currency: updatedSettings.currency,
-      server: updatedSettings.server,
-    });
-
     return NextResponse.json({
-      success: true,
-      accountId: derivAccount.derivAccountId,
-      accountType: derivAccount.accountType.toUpperCase(),
-      accountPlatform: 'mt5',
-      product: 'cfd',
-      balance: derivAccount.balance,
-      currency: derivAccount.currency,
-      accountStatus: derivAccount.accountStatus,
-      mt5Server: derivAccount.mt5Server,
-      lastVerifiedAt: derivAccount.lastVerifiedAt,
-    });
+      success: false,
+      error: 'MT5_BALANCE_REQUIRES_EA_BRIDGE',
+      message: 'Deriv OAuth does not expose a documented MT5 balance endpoint. The MT5 EA/bridge must report account state.',
+    }, { status: 501 });
 
   } catch (error) {
     console.error('[Deriv Refresh] Error:', error);

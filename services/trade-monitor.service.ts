@@ -17,8 +17,6 @@
 
 import CopyTrade from '@/models/CopyTrade';
 import DerivAccount from '@/models/DerivAccount';
-import { decrypt } from '@/lib/encryption';
-import { createDerivMT5Service, resolveDerivAppId } from './deriv-mt5.service';
 
 export interface MonitorResult {
   tradeId: string;
@@ -188,28 +186,8 @@ export class TradeMonitorService {
         return result;
       }
       
-      // Step 3: Check if token is expired
-      if (derivAccount.tokenExpiresAt < new Date()) {
-        throw new Error('ACCESS_TOKEN_EXPIRED');
-      }
-      
-      // Step 4: Decrypt the access token
-      let accessToken: string;
-      try {
-        accessToken = decrypt(derivAccount.accessTokenEncrypted);
-      } catch (error) {
-        throw new Error('TOKEN_DECRYPTION_FAILED');
-      }
-      
-      // Step 5: Create MT5 service for position monitoring
-      const mt5Service = createDerivMT5Service(accessToken, resolveDerivAppId());
-      
       console.log(`[TradeMonitor] Checking MT5 position: ${trade.mt5PositionId}`);
       
-      // Step 6: Query MT5 for current position state
-      // Note: Deriv MT5 API doesn't have direct position monitoring via API
-      // This would need to be implemented via MT5 Expert Advisor integration
-      // For now, we'll mark as pending EA integration
       console.log(`[TradeMonitor] MT5 position monitoring requires EA integration`);
       result.error = 'MT5_POSITION_MONITORING_REQUIRES_EA';
       result.success = false;

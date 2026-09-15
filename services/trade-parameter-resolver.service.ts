@@ -15,9 +15,7 @@ import DerivAccount from '@/models/DerivAccount';
 import LotSizeManagement from '@/models/LotSizeManagement';
 import StopLossManagement from '@/models/StopLossManagement';
 import PositionLimit from '@/models/PositionLimit';
-import { decrypt } from '@/lib/encryption';
 import { ISignal } from '@/models/Signal';
-import { createDerivMT5Service, resolveDerivAppId } from './deriv-mt5.service';
 
 export interface ResolvedTradeParameters {
   signalId: string;
@@ -81,35 +79,9 @@ export class TradeParameterResolver {
         };
       }
       
-      // Decrypt the access token
-      let accessToken: string;
-      try {
-        accessToken = decrypt(derivAccount.accessTokenEncrypted);
-        console.log(`[TradeParameterResolver] Token decrypted successfully, length: ${accessToken.length}`);
-      } catch (error) {
-        console.error(`[TradeParameterResolver] Token decryption failed:`, error);
-        return {
-          success: false,
-          error: 'TOKEN_DECRYPTION_FAILED'
-        };
-      }
-      
-      // Create Deriv API client using WebSocket
-      console.log(`[TradeParameterResolver] Creating MT5 service for ${derivAccount.accountType} account`);
-      const mt5Service = createDerivMT5Service(accessToken, resolveDerivAppId());
-      
-      // Fetch account information to get current balance from MT5
-      console.log(`[TradeParameterResolver] Fetching account info from MT5 API`);
-      const mt5AccountSettings = await mt5Service.getMT5AccountSettings(derivAccount.mt5Login!);
-      const currentBalance = mt5AccountSettings.balance;
-      
-      console.log(`[TradeParameterResolver] MT5 account info retrieved: balance=${currentBalance}, currency=${mt5AccountSettings.currency}`);
-      
-      console.log(`[TradeParameterResolver] Current MT5 balance fetched successfully: ${currentBalance}`);
-      
       return {
-        success: true,
-        currentBalance
+        success: false,
+        error: 'MT5_BALANCE_REQUIRES_EA_BRIDGE'
       };
       
     } catch (error) {
