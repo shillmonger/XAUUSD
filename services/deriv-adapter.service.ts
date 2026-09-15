@@ -257,7 +257,8 @@ export class DerivAdapter {
         return result;
       }
 
-      // Step 4: Create pending copy trade record
+      // Step 4: Create pending copy trade record with original stake
+      // Note: The actual executed stake may be adjusted based on validation_params
       const copyTrade = new CopyTrade({
         signalId: request.signalId,
         userId: request.userId,
@@ -271,7 +272,7 @@ export class DerivAdapter {
         stopLoss: request.stopLoss,
         takeProfit: request.takeProfit,
         takeProfits: [request.takeProfit], // Store single TP in array for audit
-        stake: request.stake,
+        stake: request.stake, // Original requested stake
         status: 'PENDING',
         processedAt: new Date()
       });
@@ -290,71 +291,143 @@ export class DerivAdapter {
 
       console.log(`[DerivAdapter] Translated trade: ${request.asset} -> ${derivSymbol}, ${request.direction} -> ${contractType}`);
 
-      // Step 7: Get proposal from Deriv
+      // Step 7: Get proposal from Deriv with dynamic stake validation
       // For Deriv Multipliers (confirmed from official documentation):
       // - contract_type: MULTUP (BUY) or MULTDOWN (SELL)
       // - multiplier: leverage multiplier (acceptable values for XAUUSD: 100,200,300,500,800)
       // - limit_order: contains stop_loss and take_profit (only for MULTUP/MULTDOWN)
+      // - validation_params in response contains max/min stake limits
       // Official docs: "Add an order to close the contract once the order condition is met (only for MULTUP and MULTDOWN)"
-      const proposalRequest = {
-        proposal: 1,
-        underlying_symbol: derivSymbol,
-        contract_type: contractType,
-        amount: stake,
-        basis: 'stake' as const,
-        currency: 'USD',
-        duration_unit: 's', // Duration unit: 's' for seconds (as shown in Multipliers examples)
-        multiplier: 100, // Multiplier for leverage (100x - acceptable range for XAUUSD: 100,200,300,500,800)
-        subscribe: 1,
-        // SL/TP via limit_order (confirmed from official documentation for MULTUP/MULTDOWN)
-        limit_order: {
-          stop_loss: request.stopLoss,
-          take_profit: request.takeProfit
-        }
-      };
+      
+      let currentStake = stake;
+      let maxRetries = 3;
+      let proposal: any = null;
 
-      console.log(`[DerivAdapter] Requesting proposal with params:`, {
-        underlying_symbol: derivSymbol,
-        contract_type: contractType,
-        amount: stake,
-        basis: 'stake',
-        currency: 'USD',
-        duration_unit: 's',
-        multiplier: 100,
-        subscribe: 1,
-        limit_order: {
-          stop_loss: request.stopLoss,
-          take_profit: request.takeProfit
-        },
-        internal_symbol: request.asset,
-        internal_direction: request.direction,
-        internal_stake: request.stake
-      });
-      let proposal;
-      try {
-        proposal = await this.apiClient!.getProposal(proposalRequest);
-      } catch (proposalError) {
-        // If proposal fails due to connection issue, try reconnecting with fresh OTP
-        console.warn('[DerivAdapter] Proposal failed, attempting reconnection with fresh OTP', {
-          error: proposalError instanceof Error ? proposalError.message : 'Unknown error'
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        const proposalRequest = {
+          proposal: 1,
+          underlying_symbol: derivSymbol,
+          contract_type: contractType,
+          amount: currentStake,
+          basis: 'stake' as const,
+          currency: 'USD',
+          duration_unit: 's', // Duration unit: 's' for seconds (as shown in Multipliers examples)
+          multiplier: 100, // Multiplier for leverage (100x - acceptable range for XAUUSD: 100,200,300,500,800)
+          subscribe: 1,
+          // SL/TP via limit_order (confirmed from official documentation for MULTUP/MULTDOWN)
+          limit_order: {
+            stop_loss: request.stopLoss,
+            take_profit: request.takeProfit
+          }
+        };
+
+        console.log(`[DerivAdapter] Proposal attempt ${attempt}/${maxRetries} with stake: ${currentStake}`, {
+          underlying_symbol: derivSymbol,
+          contract_type: contractType,
+          amount: currentStake,
+          basis: 'stake',
+          currency: 'USD',
+          duration_unit: 's',
+          multiplier: 100,
+          subscribe: 1,
+          limit_order: {
+            stop_loss: request.stopLoss,
+            take_profit: request.takeProfit
+          },
+          internal_symbol: request.asset,
+          internal_direction: request.direction,
+          original_stake: request.stake
         });
+
         try {
-          await this.apiClient!.reconnect();
-          console.log('[DerivAdapter] Reconnected, retrying proposal with same params');
           proposal = await this.apiClient!.getProposal(proposalRequest);
-        } catch (reconnectError) {
-          throw new Error(`Proposal failed after reconnection: ${reconnectError instanceof Error ? reconnectError.message : 'Unknown error'}`);
+          
+          // Check validation_params from proposal response
+          if (proposal.validation_params && proposal.validation_params.stake) {
+            const maxStake = parseFloat(proposal.validation_params.stake.max || '0');
+            const minStake = parseFloat(proposal.validation_params.stake.min || '0');
+            
+            console.log(`[DerivAdapter] Validation params from proposal:`, {
+              min_stake: minStake,
+              max_stake: maxStake,
+              current_stake: currentStake,
+              is_valid: currentStake >= minStake && currentStake <= maxStake
+            });
+
+            // If current stake exceeds max, reduce it and retry
+            if (currentStake > maxStake) {
+              if (attempt < maxRetries) {
+                currentStake = maxStake;
+                console.warn(`[DerivAdapter] Stake ${currentStake} exceeds max ${maxStake}, retrying with adjusted stake: ${currentStake}`);
+                continue;
+              } else {
+                throw new Error(`Stake ${currentStake} exceeds maximum allowed ${maxStake} after ${maxRetries} attempts`);
+              }
+            }
+
+            // If current stake is below min, increase it and retry
+            if (currentStake < minStake) {
+              if (attempt < maxRetries) {
+                currentStake = minStake;
+                console.warn(`[DerivAdapter] Stake ${currentStake} below minimum ${minStake}, retrying with adjusted stake: ${currentStake}`);
+                continue;
+              } else {
+                throw new Error(`Stake ${currentStake} below minimum allowed ${minStake} after ${maxRetries} attempts`);
+              }
+            }
+          }
+
+          // If we get here, stake is valid
+          console.log(`[DerivAdapter] Proposal successful with validated stake: ${currentStake}`);
+          break;
+
+        } catch (proposalError) {
+          const errorMessage = proposalError instanceof Error ? proposalError.message : 'Unknown error';
+          
+          // If error is about stake limits and we have retries left, try reducing stake
+          if (errorMessage.includes('amount equal to or lower than') && attempt < maxRetries) {
+            const match = errorMessage.match(/lower than (\d+\.?\d*)/);
+            if (match) {
+              const limit = parseFloat(match[1]);
+              currentStake = Math.min(currentStake * 0.5, limit); // Reduce by half or to limit
+              console.warn(`[DerivAdapter] Stake limit error, reducing stake to ${currentStake} and retrying`);
+              continue;
+            }
+          }
+
+          // If proposal fails due to connection issue, try reconnecting with fresh OTP
+          if (errorMessage.includes('connection') || errorMessage.includes('timeout') || errorMessage.includes('WebSocket')) {
+            console.warn('[DerivAdapter] Proposal failed with connection error, attempting reconnection with fresh OTP', {
+              error: errorMessage
+            });
+            try {
+              await this.apiClient!.reconnect();
+              console.log('[DerivAdapter] Reconnected, retrying proposal');
+              continue;
+            } catch (reconnectError) {
+              throw new Error(`Proposal failed after reconnection: ${reconnectError instanceof Error ? reconnectError.message : 'Unknown error'}`);
+            }
+          }
+
+          // If we get here, it's a different error or we're out of retries
+          throw new Error(`Proposal failed: ${errorMessage}`);
         }
       }
-      console.log(`[DerivAdapter] Proposal received: ${proposal.id}`);
 
-      // Step 8: Buy the contract
+      console.log(`[DerivAdapter] Final proposal received: ${proposal.id} with stake: ${currentStake}`);
+
+      // Ensure proposal is defined before proceeding
+      if (!proposal) {
+        throw new Error('Failed to get valid proposal after multiple attempts');
+      }
+
+      // Step 8: Buy the contract with validated stake
       const buyRequest = {
         proposal_id: proposal.id,
         price: proposal.ask_price
       };
 
-      console.log(`[DerivAdapter] Buying contract`);
+      console.log(`[DerivAdapter] Buying contract with validated stake: ${currentStake}`);
       let buyResponse;
       try {
         buyResponse = await this.apiClient!.buy(buyRequest);
@@ -381,6 +454,13 @@ export class DerivAdapter {
       copyTrade.brokerTransactionId = buyResponse.transaction_id.toString();
       copyTrade.buyPrice = buyResponse.buy_price; // Use buyPrice instead of executionPrice
       copyTrade.actualEntrySpot = buyResponse.buy_price; // Set actual entry spot
+      
+      // Update stake if it was adjusted during validation
+      if (currentStake !== request.stake) {
+        copyTrade.stake = currentStake;
+        console.log(`[DerivAdapter] Stake adjusted from ${request.stake} to ${currentStake} due to validation limits`);
+      }
+      
       copyTrade.status = 'OPEN';
       copyTrade.openedAt = new Date();
       await copyTrade.save();

@@ -40,6 +40,24 @@ export interface ProposalResponse {
   payout: number;
   spot: number;
   spot_time: number;
+  validation_params?: {
+    stake?: {
+      min?: string;
+      max?: string;
+    };
+    payout?: {
+      min?: string;
+      max?: string;
+    };
+    stop_loss?: {
+      min?: string;
+      max?: string;
+    };
+    take_profit?: {
+      min?: string;
+      max?: string;
+    };
+  };
   [key: string]: any;
 }
 
