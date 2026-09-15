@@ -293,7 +293,7 @@ export class DerivAdapter {
       // Step 7: Get proposal from Deriv
       // For Deriv Multipliers (confirmed from official documentation):
       // - contract_type: MULTUP (BUY) or MULTDOWN (SELL)
-      // - multiplier: leverage multiplier (e.g., 10 for 10x)
+      // - multiplier: leverage multiplier (acceptable values for XAUUSD: 100,200,300,500,800)
       // - limit_order: contains stop_loss and take_profit (only for MULTUP/MULTDOWN)
       // Official docs: "Add an order to close the contract once the order condition is met (only for MULTUP and MULTDOWN)"
       const proposalRequest = {
@@ -304,7 +304,7 @@ export class DerivAdapter {
         basis: 'stake' as const,
         currency: 'USD',
         duration_unit: 's', // Duration unit: 's' for seconds (as shown in Multipliers examples)
-        multiplier: 10, // Multiplier for leverage (10x - this may need to be configurable)
+        multiplier: 100, // Multiplier for leverage (100x - acceptable range for XAUUSD: 100,200,300,500,800)
         subscribe: 1,
         // SL/TP via limit_order (confirmed from official documentation for MULTUP/MULTDOWN)
         limit_order: {
@@ -320,7 +320,7 @@ export class DerivAdapter {
         basis: 'stake',
         currency: 'USD',
         duration_unit: 's',
-        multiplier: 10,
+        multiplier: 100,
         subscribe: 1,
         limit_order: {
           stop_loss: request.stopLoss,
