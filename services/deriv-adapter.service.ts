@@ -300,7 +300,7 @@ export class DerivAdapter {
       // Official docs: "Add an order to close the contract once the order condition is met (only for MULTUP and MULTDOWN)"
       
       let currentStake = stake;
-      let maxRetries = 3;
+      let maxRetries = 5; // Increased retries to find valid stake
       let proposal: any = null;
 
       for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -368,7 +368,7 @@ export class DerivAdapter {
             // If current stake is below min, increase it and retry
             if (currentStake < minStake) {
               if (attempt < maxRetries) {
-                currentStake = minStake;
+                currentStake = parseFloat(minStake.toFixed(2)); // Use exact min from validation
                 console.warn(`[DerivAdapter] Stake ${currentStake} below minimum ${minStake}, retrying with adjusted stake: ${currentStake}`);
                 continue;
               } else {
@@ -384,13 +384,27 @@ export class DerivAdapter {
         } catch (proposalError) {
           const errorMessage = proposalError instanceof Error ? proposalError.message : 'Unknown error';
           
-          // If error is about stake limits and we have retries left, try reducing stake
+          // If error is about stake limits and we have retries left, try adjusting stake
           if (errorMessage.includes('amount equal to or lower than') && attempt < maxRetries) {
             const match = errorMessage.match(/lower than (\d+\.?\d*)/);
             if (match) {
               const limit = parseFloat(match[1]);
               currentStake = Math.min(currentStake * 0.5, limit); // Reduce by half or to limit
-              console.warn(`[DerivAdapter] Stake limit error, reducing stake to ${currentStake} and retrying`);
+              console.warn(`[DerivAdapter] Stake exceeds max limit, reducing stake to ${currentStake} and retrying`);
+              continue;
+            }
+          }
+
+          // If error is about minimum stake and we have retries left, try increasing stake
+          if (errorMessage.includes('at least') && attempt < maxRetries) {
+            const match = errorMessage.match(/at least (\d+\.?\d*)/);
+            if (match) {
+              const minLimit = parseFloat(match[1]);
+              // Try increasing stakes: 2, 5, 10, 25, 50
+              const commonStakes = [2, 5, 10, 25, 50];
+              const nextStake = commonStakes.find(s => s > currentStake && s >= minLimit) || (currentStake * 2);
+              currentStake = Math.max(nextStake, minLimit + 0.1);
+              console.warn(`[DerivAdapter] Stake below minimum limit, trying stake: ${currentStake}`);
               continue;
             }
           }
