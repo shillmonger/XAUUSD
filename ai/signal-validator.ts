@@ -79,70 +79,59 @@ export function validateSignal(extractionResult: SignalExtractionResult): Signal
 
   // Rule 8: DIRECTIONAL SL/TP VALIDATION (NEW - ENABLED)
   // This prevents logically inverted signals
-  if (extractionResult.direction === 'BUY') {
-    // BUY: SL should be below reference, TP should be above reference
-    const referencePrice = extractionResult.sourceEntryPrice ?? extractionResult.stopLoss;
-    
-    if (!referencePrice) {
-      console.log(`[Signal Validator] BUY signal missing reference price for directional validation`);
-      return {
-        isValid: false,
-        reason: 'BUY signal requires reference price for directional validation.',
-      };
-    }
-
-    // SL should be below reference for BUY
-    if (extractionResult.stopLoss >= referencePrice) {
-      console.log(`[Signal Validator] BUY signal SL is above reference`);
-      return {
-        isValid: false,
-        reason: 'BUY signal stop loss must be below reference price.',
-      };
-    }
-
-    // TPs should be above reference for BUY
-    for (const tp of extractionResult.takeProfits) {
-      if (tp <= referencePrice) {
-        console.log(`[Signal Validator] BUY signal TP ${tp} is below reference`);
+  // SKIP for MARKET orders since execution price is unknown at signal extraction time
+  if (extractionResult.sourceOrderType !== 'MARKET' && extractionResult.sourceEntryPrice !== undefined) {
+    if (extractionResult.direction === 'BUY') {
+      // BUY: SL should be below entry, TP should be above entry
+      const referencePrice = extractionResult.sourceEntryPrice;
+      
+      // SL should be below entry for BUY
+      if (extractionResult.stopLoss >= referencePrice) {
+        console.log(`[Signal Validator] BUY signal SL ${extractionResult.stopLoss} is above entry ${referencePrice}`);
         return {
           isValid: false,
-          reason: `BUY signal take profit ${tp} must be above reference price.`,
+          reason: 'BUY signal stop loss must be below entry price.',
         };
       }
-    }
-  }
 
-  if (extractionResult.direction === 'SELL') {
-    // SELL: SL should be above reference, TP should be below reference
-    const referencePrice = extractionResult.sourceEntryPrice ?? extractionResult.stopLoss;
-    
-    if (!referencePrice) {
-      console.log(`[Signal Validator] SELL signal missing reference price for directional validation`);
-      return {
-        isValid: false,
-        reason: 'SELL signal requires reference price for directional validation.',
-      };
+      // TPs should be above entry for BUY
+      for (const tp of extractionResult.takeProfits) {
+        if (tp <= referencePrice) {
+          console.log(`[Signal Validator] BUY signal TP ${tp} is below entry ${referencePrice}`);
+          return {
+            isValid: false,
+            reason: `BUY signal take profit ${tp} must be above entry price.`,
+          };
+        }
+      }
     }
 
-    // SL should be above reference for SELL
-    if (extractionResult.stopLoss <= referencePrice) {
-      console.log(`[Signal Validator] SELL signal SL is below reference`);
-      return {
-        isValid: false,
-        reason: 'SELL signal stop loss must be above reference price.',
-      };
-    }
-
-    // TPs should be below reference for SELL
-    for (const tp of extractionResult.takeProfits) {
-      if (tp >= referencePrice) {
-        console.log(`[Signal Validator] SELL signal TP ${tp} is above reference`);
+    if (extractionResult.direction === 'SELL') {
+      // SELL: SL should be above entry, TP should be below entry
+      const referencePrice = extractionResult.sourceEntryPrice;
+      
+      // SL should be above entry for SELL
+      if (extractionResult.stopLoss <= referencePrice) {
+        console.log(`[Signal Validator] SELL signal SL ${extractionResult.stopLoss} is below entry ${referencePrice}`);
         return {
           isValid: false,
-          reason: `SELL signal take profit ${tp} must be below reference price.`,
+          reason: 'SELL signal stop loss must be above entry price.',
         };
       }
+
+      // TPs should be below entry for SELL
+      for (const tp of extractionResult.takeProfits) {
+        if (tp >= referencePrice) {
+          console.log(`[Signal Validator] SELL signal TP ${tp} is above entry ${referencePrice}`);
+          return {
+            isValid: false,
+            reason: `SELL signal take profit ${tp} must be below entry price.`,
+          };
+        }
+      }
     }
+  } else {
+    console.log(`[Signal Validator] Skipping directional SL/TP validation for MARKET order or missing entry price`);
   }
 
   // Rule 9: Validate numeric values (renamed field)
