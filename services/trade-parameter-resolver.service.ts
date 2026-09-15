@@ -380,7 +380,17 @@ export class TradeParameterResolver {
         return result;
       }
       result.configuredStake = lotSizeResult.lotSize;
-      result.finalStake = lotSizeResult.lotSize;
+      
+      // For Multipliers, lot_size from admin config is treated as stake in USD
+      // Ensure minimum stake of at least 5 USD for Multipliers (based on typical Deriv requirements)
+      let finalStake: number;
+      if (lotSizeResult.lotSize && lotSizeResult.lotSize < 5) {
+        console.log(`[TradeParameterResolver] Lot size ${lotSizeResult.lotSize} below Multipliers minimum, setting to 5`);
+        finalStake = 5;
+      } else {
+        finalStake = lotSizeResult.lotSize || 5;
+      }
+      result.finalStake = finalStake;
       
       // Step 5: Match stop loss rule
       const stopLossResult = await this.matchStopLossRule(result.currentBalance);
