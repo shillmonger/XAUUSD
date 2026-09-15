@@ -242,14 +242,22 @@ export class DerivApiClient {
       req_id: Date.now()
     };
 
+    console.log('[DerivApiClient] Sending account_info request');
     const response = await this.wsClient.sendAndWait<any>(request);
+    console.log('[DerivApiClient] Received account_info response:', {
+      msg_type: response.msg_type,
+      has_error: !!response.error,
+      has_account_info: !!response.account_info
+    });
     
     if (response.error) {
+      console.error('[DerivApiClient] Account info error:', response.error);
       throw new Error(response.error.message);
     }
 
     const accountInfo = response.account_info;
     if (!accountInfo) {
+      console.error('[DerivApiClient] No account_info in response');
       throw new Error('No account info in response');
     }
 

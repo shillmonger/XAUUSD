@@ -365,6 +365,13 @@ export class TradeParameterResolver {
         result.balanceSynchronized = await this.synchronizeBalance(derivAccount, result.currentBalance);
       }
       
+      // Safety check: Ensure we have a valid balance
+      if (result.currentBalance <= 0) {
+        result.rejectionReason = 'INVALID_BALANCE';
+        console.log(`[TradeParameterResolver] Rejected: Invalid balance (${result.currentBalance})`);
+        return result;
+      }
+      
       // Step 4: Match lot size rule
       const lotSizeResult = await this.matchLotSizeRule(result.currentBalance);
       if (lotSizeResult.error) {
@@ -385,12 +392,20 @@ export class TradeParameterResolver {
       result.configuredStopLoss = stopLossResult.stopLoss;
       
       // Step 6: Calculate final stop loss (admin config overrides Telegram SL)
-      if (signal.sourceEntryPrice !== undefined) {
+      // For MARKET orders, use the Telegram stop loss directly since entry price is unknown
+      // For LIMIT/STOP orders, calculate from entry price
+      if (signal.sourceOrderType === 'MARKET') {
+        // MARKET orders: Use Telegram SL directly
+        result.finalStopLoss = signal.stopLoss;
+        console.log(`[TradeParameterResolver] MARKET order: Using Telegram SL directly: ${result.finalStopLoss}`);
+      } else if (signal.sourceEntryPrice !== undefined) {
+        // LIMIT/STOP orders: Calculate from entry price
         result.finalStopLoss = this.calculateFinalStopLoss(
           result.configuredStopLoss!,
           signal.direction,
           signal.sourceEntryPrice
         );
+        console.log(`[TradeParameterResolver] LIMIT/STOP order: Calculated SL from entry: ${result.finalStopLoss}`);
       } else {
         result.rejectionReason = 'MISSING_ENTRY_FOR_SL_CALCULATION';
         console.log(`[TradeParameterResolver] Rejected: ${result.rejectionReason}`);

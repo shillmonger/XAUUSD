@@ -183,7 +183,9 @@ export class DerivWebSocketClient {
       has_proposal: !!message.proposal,
       has_buy: !!message.buy,
       has_contract_update: !!message.contract_update,
-      echo_req: message.echo_req ? 'present' : 'absent'
+      has_account_info: !!message.account_info,
+      echo_req: message.echo_req ? 'present' : 'absent',
+      pending_requests: this.requestPromises.size
     });
 
     // Check if this is a response to a specific request
@@ -211,6 +213,21 @@ export class DerivWebSocketClient {
         }
       } else {
         resolve(message);
+      }
+    } else {
+      // Handle messages without matching request ID
+      if (message.error) {
+        console.warn('[DerivWebSocketClient] Received error message without matching request:', {
+          msg_type: message.msg_type,
+          error: message.error,
+          req_id: message.req_id
+        });
+        // Don't throw error for unsolicited error messages
+      } else {
+        console.log('[DerivWebSocketClient] Received unsolicited message (no matching request):', {
+          msg_type: message.msg_type,
+          req_id: message.req_id
+        });
       }
     }
 
