@@ -4,10 +4,10 @@
  * 
  * This service:
  * - Wraps WebSocket client for trading operations
- * - Implements OTP authentication for current Deriv Options API
+ * - Implements OTP authentication for current Deriv API
  * - Implements proposal request for contract pricing
  * - Implements buy operation for contract execution
- * - Implements contract_update for SL/TP modification
+ * - contract_update is DISABLED (not supported for Multipliers)
  * - Handles Deriv-specific response formats
  * - Uses current Deriv API field names (underlying_symbol, etc.)
  */
@@ -15,13 +15,16 @@
 import { DerivWebSocketClient, createDerivWebSocketClient, DerivMessage } from './deriv-websocket-client.service';
 
 export interface ProposalRequest {
+  proposal?: number;
   underlying_symbol: string;
   contract_type: string;
   amount: number;
   basis: 'stake' | 'payout';
   currency?: string;
-  duration: number;
-  duration_unit: string;
+  duration?: number;  // Optional for Multipliers
+  duration_unit?: string;
+  multiplier?: number;  // Required for Multipliers
+  subscribe?: number;
   barrier?: string;
   barrier_type?: string;
   [key: string]: any;
@@ -580,8 +583,15 @@ export class DerivApiClient {
   /**
    * Update contract settings (stop loss, take profit)
    * This is used after purchase to apply SL/TP
+   * NOTE: DISABLED - contract_update is not supported for Multipliers
    */
   async updateContract(request: ContractUpdateRequest): Promise<ContractUpdateResponse> {
+    // DISABLED: contract_update is not supported for Multipliers
+    // This would cause "ContractUpdateNotAllowed" error
+    console.error('[DerivApiClient] CONTRACT_UPDATE DISABLED - Not supported for Multipliers contract types');
+    throw new Error('contract_update is not supported for Multipliers contract types');
+
+    /*
     const derivRequest = {
       contract_update: 1,
       contract_id: request.contract_id,
@@ -639,6 +649,19 @@ export class DerivApiClient {
       take_profit: contractUpdate.take_profit,
       ...contractUpdate
     };
+    */
+  }
+
+  /**
+   * Update contract settings (stop loss, take profit) - DISABLED
+   * This function is disabled because contract_update is not supported for Multipliers
+   * The API returns "ContractUpdateNotAllowed" for Multipliers contract types
+   */
+  async updateContractDisabled(request: ContractUpdateRequest): Promise<ContractUpdateResponse> {
+    // DISABLED: contract_update is not supported for Multipliers
+    // This would cause "ContractUpdateNotAllowed" error
+    console.error('[DerivApiClient] CONTRACT_UPDATE DISABLED - Not supported for Multipliers contract types');
+    throw new Error('contract_update is not supported for Multipliers contract types');
   }
 
   /**

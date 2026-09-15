@@ -5,8 +5,10 @@
  * This service:
  * - Isolates Deriv-specific logic from the rest of the application
  * - Translates internal trade format to Deriv API format
- * - Executes proposal → buy workflow
- * - Applies SL/TP via contract_update if required
+ * - Executes proposal → buy workflow for Deriv Multipliers
+ * - Uses MULTUP/MULTDOWN contract types for Multipliers
+ * - SL/TP mechanism is currently unclear from Deriv documentation
+ * - contract_update is disabled (not supported for Multipliers)
  * - Returns normalized execution results
  * - Stores execution results in CopyTrade model
  * - Enforces demo account safety
@@ -98,13 +100,14 @@ export class DerivAdapter {
   }
 
   /**
-   * Translate internal direction to Deriv contract type
-   * This is a simplified mapping - actual contract types depend on the product
+   * Translate internal direction to Deriv contract type for Multipliers
+   * Multipliers use MULTUP for BUY and MULTDOWN for SELL
    */
   private translateDirection(direction: 'BUY' | 'SELL'): string {
-    // This is a placeholder - actual contract types depend on the specific Deriv product
-    // We'll need to determine the correct contract type based on the available contracts
-    return direction === 'BUY' ? 'CALL' : 'PUT';
+    // For Deriv Multipliers:
+    // BUY -> MULTUP (Up direction)
+    // SELL -> MULTDOWN (Down direction)
+    return direction === 'BUY' ? 'MULTUP' : 'MULTDOWN';
   }
 
   /**
@@ -288,20 +291,24 @@ export class DerivAdapter {
       console.log(`[DerivAdapter] Translated trade: ${request.asset} -> ${derivSymbol}, ${request.direction} -> ${contractType}`);
 
       // Step 7: Get proposal from Deriv
-      // For Deriv Multipliers, SL/TP must be set in the proposal request, not after purchase
-      // Note: This is a simplified proposal request - actual parameters depend on the specific Deriv product
+      // For Deriv Multipliers:
+      // - contract_type: MULTUP (BUY) or MULTDOWN (SELL)
+      // - multiplier: leverage multiplier (e.g., 10 for 10x)
+      // - SL/TP mechanism is unclear from documentation - direct fields are rejected
+      // Note: Current Deriv documentation does not clearly show how to set SL/TP in proposal
       const proposalRequest = {
+        proposal: 1,
         underlying_symbol: derivSymbol,
         contract_type: contractType,
         amount: stake,
         basis: 'stake' as const,
         currency: 'USD',
-        duration: 1, // Default duration: 1 day
-        duration_unit: 'd', // Duration unit: 'd' for day
-        // SL/TP parameters for Multipliers (if supported)
-        stop_loss: request.stopLoss,
-        take_profit: request.takeProfit,
-        // Additional parameters would be added here based on the specific product
+        duration_unit: 's', // Duration unit: 's' for seconds (as shown in Multipliers examples)
+        multiplier: 10, // Multiplier for leverage (10x - this may need to be configurable)
+        subscribe: 1,
+        // SL/TP removed - direct fields are rejected by API
+        // limit_order approach is not confirmed from official documentation
+        // May need to be handled via contract_update or another mechanism
       };
 
       console.log(`[DerivAdapter] Requesting proposal with params:`, {
@@ -310,13 +317,15 @@ export class DerivAdapter {
         amount: stake,
         basis: 'stake',
         currency: 'USD',
-        duration: 1,
-        duration_unit: 'd',
-        stop_loss: request.stopLoss,
-        take_profit: request.takeProfit,
+        duration_unit: 's',
+        multiplier: 10,
+        subscribe: 1,
         internal_symbol: request.asset,
         internal_direction: request.direction,
-        internal_stake: request.stake
+        internal_stake: request.stake,
+        internal_stopLoss: request.stopLoss,
+        internal_takeProfit: request.takeProfit,
+        note: 'SL/TP not included in proposal - mechanism unclear from documentation'
       });
       let proposal;
       try {
@@ -359,9 +368,14 @@ export class DerivAdapter {
       console.log(`[DerivAdapter] Contract bought: ${buyResponse.contract_id}`);
 
       // Step 9: Skip post-purchase SL/TP update
-      // Deriv Multipliers require SL/TP to be set in the proposal request, not after purchase
-      // The contract_update API is not supported for Multipliers contract types
-      console.log(`[DerivAdapter] Skipping post-purchase SL/TP update (not supported for Multipliers)`);
+      // Deriv Multipliers SL/TP mechanism is unclear from official documentation:
+      // - Direct SL/TP fields in proposal are rejected by API
+      // - limit_order in proposal is not confirmed from official docs
+      // - contract_update is not supported for Multipliers (ContractUpdateNotAllowed error)
+      // Current trade will execute without SL/TP protection
+      console.warn(`[DerivAdapter] SL/TP NOT APPLIED - mechanism unclear from Deriv documentation`);
+      console.warn(`[DerivAdapter] Trade will execute without Stop Loss/Take Profit protection`);
+      console.warn(`[DerivAdapter] Required SL: ${request.stopLoss}, TP: ${request.takeProfit}`);
 
       // Step 10: Update copy trade record with success
       copyTrade.brokerContractId = buyResponse.contract_id;
